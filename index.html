@@ -277,9 +277,11 @@
             <div class="form-group">
                 <label for="comparisonPeriod">Karşılaştırma Periyodu:</label>
                 <select id="comparisonPeriod" onchange="renderComparisonChart()">
-                    <option value="ytd">Yıl Başından Beri</option><option value="1y">Son 1 Yıl</option>
-                    <option value="6m">Son 6 Ay</option><option value="3m">Son 3 Ay</option>
-                </select>
+                    <option value="1y">Son 1 Yıl</option>
+                    <option value="ytd">Yıl Başından Beri</option>
+                    <option value="6m">Son 6 Ay</option>
+                    <option value="3m">Son 3 Ay</option>
+                    <option value="1m">Son 30 Gün</option> <option value="1w">Son 7 Gün</option> </select>
             </div>
             <div id="comparisonChartContainer"><canvas id="comparisonChart"></canvas></div>
         </div>
@@ -326,9 +328,8 @@
             evt.currentTarget.className += " active";
         }
 
-        // GERÇEK ZAMANLI VERİ YÖNETİMİ (YENİ)
+        // GERÇEK ZAMANLI VERİ YÖNETİMİ
         function loadRealtimeData() {
-            // Kasa ve Notları dinle
             db.collection("settings").onSnapshot(snapshot => {
                 snapshot.forEach(doc => {
                     if (doc.id === "kasa") {
@@ -343,14 +344,13 @@
                 renderAll();
             });
 
-            // İşlemleri dinle
             db.collection("transactions").orderBy("entryDate", "desc").onSnapshot(snapshot => {
                 transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderAll();
             });
         }
 
-        // KASA YÖNETİMİ (GÜNCELLENDİ)
+        // KASA YÖNETİMİ
         async function updateKasa() {
             const initialInput = document.getElementById('initialKasa');
             const additionInput = document.getElementById('kasaAddition');
@@ -366,7 +366,7 @@
             additionInput.value = '';
         }
 
-        // TEKİL İŞLEM YÖNETİMİ (GÜNCELLENDİ)
+        // TEKİL İŞLEM YÖNETİMİ
         document.getElementById('transactionForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const transaction = {
@@ -390,7 +390,7 @@
             }
         }
         
-        // TOPLU İŞLEM YÖNETİMİ (GÜNCELLENDİ)
+        // TOPLU İŞLEM YÖNETİMİ
         async function processBulkData() {
             const rawData = document.getElementById('bulkData').value;
             const lines = rawData.split('\n').filter(line => line.trim() !== '');
@@ -453,14 +453,13 @@
             }
         }
         
-        // NOT DEFTERİ (GÜNCELLENDİ)
+        // NOT DEFTERİ
         document.getElementById('notes').addEventListener('keyup', function() {
-            // Her tuş vuruşunda kaydetmeyi önlemek için bir zamanlayıcı kullan
             clearTimeout(this.timer);
             this.timer = setTimeout(async () => {
                 notes = this.value;
                 await db.collection("settings").doc("notes").set({ content: notes });
-            }, 500); // 500ms bekleme süresi
+            }, 500);
         });
 
         // HESAPLAMA VE GÖRÜNTÜLEME FONKSİYONLARI
@@ -528,7 +527,7 @@
             const grid = document.getElementById('dashboardGrid');
             grid.innerHTML = ''; 
             const closed = transactions.filter(t => t.pnlTL !== null);
-            if (kasa.initial === 0 && closed.length === 0) {
+            if (!kasa.initial && closed.length === 0) {
                 grid.innerHTML = "<p>Lütfen 'İşlem Listesi' sekmesinden başlangıç kasanızı ve işlemlerinizi girin.</p>";
                 return;
             }
@@ -554,7 +553,6 @@
         }
 
         function renderDashboardCharts(closedTrades) {
-            // Kasa Growth Chart
             if (kasaChartInstance) kasaChartInstance.destroy();
             const kasaCtx = document.getElementById('kasaGrowthChart').getContext('2d');
             const sortedTrades = closedTrades.slice().sort((a,b) => new Date(a.exitDate) - new Date(b.exitDate));
@@ -571,7 +569,6 @@
                 options: { responsive: true, plugins: { legend: { labels: { color: 'white' } }, title: { display: true, text: 'Kasa Değerinin Zamana Göre Değişimi', color: 'white' } }, scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white' } } } }
             });
 
-            // Win Rate Chart
             if (winRateChartInstance) winRateChartInstance.destroy();
             const winRateCtx = document.getElementById('winRateChart').getContext('2d');
             const wins = closedTrades.filter(t => t.pnlTL > 0).length;
@@ -586,18 +583,8 @@
             const container = document.getElementById('analysisResults');
             container.innerHTML = '';
             const period = document.getElementById('analysisPeriod').value;
-            const now = new Date();
-            const trades = transactions.filter(t => {
-                if(t.pnlTL === null) return false;
-                const exitDate = new Date(t.exitDate);
-                if (period === 'all') return true;
-                if (period === 'ytd') return exitDate.getFullYear() === now.getFullYear();
-                const diff = (now - exitDate) / (1000 * 3600 * 24);
-                if (period === 'quarter') return diff <= 90;
-                if (period === 'month') return diff <= 30;
-                if (period === 'week') return diff <= 7;
-                return false;
-            });
+            const trades = filterTradesByPeriod(transactions.filter(t => t.pnlTL !== null), period);
+            
             if (trades.length === 0) {
                 container.innerHTML = '<p>Seçilen periyot için analiz edilecek veri bulunmuyor.</p>'; return;
             }
@@ -633,23 +620,54 @@
             if (typeof Chart === 'undefined') return;
             const ctx = document.getElementById('comparisonChart').getContext('2d');
             const pData = {
-                'ytd': {'Türk Lirası':0,'Bist 100':18,'Gram Altın':25,'Dolar':15,'Euro':12,'Bitcoin':45,'Vadeli Mevduat':22,'Fon(HKH)':28,'BES':17,'GÜMÜŞ':20},
                 '1y': {'Türk Lirası':0,'Bist 100':40,'Gram Altın':55,'Dolar':35,'Euro':30,'Bitcoin':110,'Vadeli Mevduat':45,'Fon(HKH)':50,'BES':35,'GÜMÜŞ':45},
+                'ytd': {'Türk Lirası':0,'Bist 100':18,'Gram Altın':25,'Dolar':15,'Euro':12,'Bitcoin':45,'Vadeli Mevduat':22,'Fon(HKH)':28,'BES':17,'GÜMÜŞ':20},
                 '6m': {'Türk Lirası':0,'Bist 100':25,'Gram Altın':30,'Dolar':20,'Euro':18,'Bitcoin':60,'Vadeli Mevduat':23,'Fon(HKH)':35,'BES':22,'GÜMÜŞ':28},
-                '3m': {'Türk Lirası':0,'Bist 100':12,'Gram Altın':15,'Dolar':8,'Euro':7,'Bitcoin':20,'Vadeli Mevduat':11,'Fon(HKH)':18,'BES':12,'GÜMÜŞ':14}
+                '3m': {'Türk Lirası':0,'Bist 100':12,'Gram Altın':15,'Dolar':8,'Euro':7,'Bitcoin':20,'Vadeli Mevduat':11,'Fon(HKH)':18,'BES':12,'GÜMÜŞ':14},
+                '1m': {'Türk Lirası':0,'Bist 100':4,'Gram Altın':5,'Dolar':2,'Euro':1.5,'Bitcoin':8,'Vadeli Mevduat':3.5,'Fon(HKH)':4.5,'BES':3,'GÜMÜŞ':6}, // YENİ
+                '1w': {'Türk Lirası':0,'Bist 100':1.5,'Gram Altın':2,'Dolar':0.5,'Euro':0.3,'Bitcoin':3,'Vadeli Mevduat':0.8,'Fon(HKH)':1.2,'BES':0.7,'GÜMÜŞ':2.5} // YENİ
             };
             const period = document.getElementById('comparisonPeriod').value;
             const data = pData[period] || pData['ytd'];
-            const pnl = transactions.filter(t => t.pnlTL !== null).reduce((a, t) => a + t.pnlTL, 0);
-            const capital = (kasa.initial || 0) + (kasa.additions || 0);
-            data['Sizin Performansınız'] = capital > 0 ? (pnl / capital) * 100 : 0;
+            
+            // Sizin performansınızı seçilen periyoda göre hesapla
+            const periodTrades = filterTradesByPeriod(transactions.filter(t => t.pnlTL !== null), period);
+            const periodPnl = periodTrades.reduce((a, t) => a + t.pnlTL, 0);
+            const capital = (kasa.initial || 0) + (kasa.additions || 0); // Başlangıç sermayesi sabit kalır
+            data['Sizin Performansınız'] = capital > 0 ? (periodPnl / capital) * 100 : 0;
+
             const labels = Object.keys(data), values = Object.values(data);
             const colorPalette = ['#e67e22', '#3498db', '#9b59b6', '#f1c40f', '#27ae60', '#e74c3c', '#8e44ad', '#d35400', '#c0392b', '#7f8c8d'];
             const bgColors = labels.map((label, index) => label === 'Sizin Performansınız' ? '#1abc9c' : colorPalette[index % colorPalette.length]);
+            
             if (comparisonChartInstance) comparisonChartInstance.destroy();
             comparisonChartInstance = new Chart(ctx, {
                 type: 'bar', data: { labels, datasets: [{ label: 'Dönemlik Getiri (%)', data: values, backgroundColor: bgColors }] },
                 options: { indexAxis: 'y', scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white' } } }, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function filterTradesByPeriod(trades, period) {
+            const now = new Date();
+            return trades.filter(t => {
+                const exitDate = new Date(t.exitDate);
+                if (period === 'all') return true;
+                if (period === 'ytd') return exitDate.getFullYear() === now.getFullYear();
+                
+                let daysToFilter;
+                switch (period) {
+                    case '1y': daysToFilter = 365; break;
+                    case '6m': daysToFilter = 182; break;
+                    case '3m': daysToFilter = 91; break;
+                    case '1m': daysToFilter = 30; break;
+                    case '1w': daysToFilter = 7; break;
+                    case 'quarter': daysToFilter = 91; break; // Analiz sekmesi için
+                    case 'month': daysToFilter = 30; break; // Analiz sekmesi için
+                    case 'week': daysToFilter = 7; break; // Analiz sekmesi için
+                    default: return true;
+                }
+                const diff = (now - exitDate) / (1000 * 3600 * 24);
+                return diff <= daysToFilter;
             });
         }
         
