@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hisse Senedi Alım Satım Günlüğü (Bulut)</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #1abc9c;
+            --text-color: #ecf0f1;
+            --profit-color: #2ecc71;
+            --loss-color: #e74c3c;
+            --background-color: #1e272e;
+            --border-color: #4a6fa5;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: auto;
+            background-color: var(--primary-color);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+        .tab-link {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            font-size: 16px;
+            border-radius: 5px 5px 0 0;
+            margin-right: 5px;
+            transition: background-color 0.3s;
+        }
+        .tab-link:hover, .tab-link.active {
+            background-color: var(--accent-color);
+            color: var(--primary-color);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        h2, h3 {
+            color: var(--accent-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+        .form-grid, .kasa-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .form-group, .kasa-group {
+            display: flex;
+            flex-direction: column;
+        }
+        label {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        input, select, button, textarea {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid var(--border-color);
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        button {
+            background-color: var(--accent-color);
+            color: var(--primary-color);
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #16a085;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: var(--secondary-color);
+        }
+        tr:nth-child(even) {
+            background-color: #3a506b;
+        }
+        .profit { color: var(--profit-color); }
+        .loss { color: var(--loss-color); }
+        .kasa-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: var(--secondary-color);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            text-align: center;
+            z-index: 1000;
+        }
+        .kasa-container h3 {
+            margin: 0 0 10px 0;
+            border: none;
+        }
+        .kasa-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+        .analiz-grid, .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .analiz-card, .dashboard-card {
+            background-color: var(--secondary-color);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .analiz-card h4, .dashboard-card h4 {
+            margin: 0 0 10px 0;
+            color: var(--accent-color);
+        }
+        .analiz-card p, .dashboard-card p {
+            font-size: 20px;
+            font-weight: bold;
+            margin: 0;
+        }
+        #comparisonChartContainer, .dashboard-chart-container {
+            margin-top: 30px;
+        }
+        .dashboard-chart-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            align-items: center;
+        }
+        textarea {
+            width: 100%;
+            height: 250px;
+            box-sizing: border-box;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: scroll;
+        }
+        .import-button {
+            margin-top: 10px;
+            width: 100%;
+        }
+        @media (max-width: 900px) {
+            .dashboard-chart-grid {
+                grid-template-columns: 1fr;
+            }
+            .kasa-container {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="kasa-container">
+        <h3>GÜNCEL KASA</h3>
+        <p id="kasaValue" class="kasa-value">0.00 TL</p>
+    </div>
+
+    <div class="container">
+        <h1>Hisse Senedi Alım Satım Günlüğü (Bulut)</h1>
+
+        <div class="tabs">
+            <button class="tab-link active" onclick="openTab(event, 'dashboard')">Dashboard</button>
+            <button class="tab-link" onclick="openTab(event, 'islemListesi')">İşlem Listesi</button>
+            <button class="tab-link" onclick="openTab(event, 'analiz')">Analiz</button>
+            <button class="tab-link" onclick="openTab(event, 'karsilastirma')">Karşılaştırma</button>
+            <button class="tab-link" onclick="openTab(event, 'notlar')">Not Defteri</button>
+        </div>
+
+        <div id="dashboard" class="tab-content active">
+            <h2>Performans Özeti</h2>
+            <div id="dashboardGrid" class="dashboard-grid"></div>
+            <div class="dashboard-chart-container">
+                <h3>Görsel Analiz</h3>
+                <div class="dashboard-chart-grid">
+                    <div class="chart-wrapper"><canvas id="kasaGrowthChart"></canvas></div>
+                    <div class="chart-wrapper"><canvas id="winRateChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="islemListesi" class="tab-content">
+            <h2>Toplu İşlem Girişi</h2>
+            <div class="form-group">
+                <label for="bulkData">Aracı kurum verilerini (başlık satırı dahil) buraya yapıştırın:</label>
+                <textarea id="bulkData" placeholder="Tarih	Hisse	Alış / Satış	Fiyat	Adet	Tutar..."></textarea>
+                <button type="button" class="import-button" onclick="processBulkData()">İşlemleri Aktar</button>
+            </div>
+            <hr style="border-color: var(--border-color); margin: 30px 0;">
+            <h2>Tekil İşlem Girişi</h2>
+            <form id="transactionForm">
+                <div class="form-grid">
+                    <div class="form-group"><label for="code">Hisse Kodu:</label><input type="text" id="code" required></div>
+                    <div class="form-group"><label for="positionSize">Position Size (% Kasa):</label><input type="number" id="positionSize" step="0.1" required></div>
+                    <div class="form-group"><label for="entryDate">Giriş Tarihi:</label><input type="date" id="entryDate" required></div>
+                    <div class="form-group"><label for="entryLot">Giriş Lot:</label><input type="number" id="entryLot" required></div>
+                    <div class="form-group"><label for="entryPrice">Giriş Fiyatı:</label><input type="number" id="entryPrice" step="0.01" required></div>
+                    <div class="form-group"><label for="exitDate">Çıkış Tarihi:</label><input type="date" id="exitDate"></div>
+                    <div class="form-group"><label for="exitLot">Çıkış Lot:</label><input type="number" id="exitLot"></div>
+                    <div class="form-group"><label for="exitPrice">Çıkış Fiyatı:</label><input type="number" id="exitPrice" step="0.01"></div>
+                </div>
+                <button type="submit">İşlemi Kaydet</button>
+            </form>
+            <h2>Kasa Yönetimi</h2>
+            <div class="kasa-grid">
+                <div class="kasa-group">
+                    <label for="initialKasa">Başlangıç Kasası:</label>
+                    <input type="number" id="initialKasa" placeholder="0.00">
+                </div>
+                <div class="kasa-group">
+                    <label for="kasaAddition">Kasaya Ekle/Çıkar (+/-):</label>
+                    <input type="number" id="kasaAddition" placeholder="Örn: 5000 veya -1000">
+                </div>
+                <div class="kasa-group" style="align-self: flex-end;">
+                    <button type="button" onclick="updateKasa()">Kasayı Güncelle</button>
+                </div>
+            </div>
+            <h2>İşlem Geçmişi</h2>
+            <table id="transactionTable">
+                <thead>
+                    <tr>
+                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
+                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th><th>PnL (%)</th>
+                        <th>PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div id="analiz" class="tab-content">
+            <h2>Performans Analizi</h2>
+            <div class="form-group">
+                <label for="analysisPeriod">Analiz Periyodu:</label>
+                <select id="analysisPeriod" onchange="renderAnalysis()">
+                    <option value="all">Tümü</option><option value="ytd">Yıl Başından Beri</option><option value="quarter">Son Çeyrek</option>
+                    <option value="month">Son 30 Gün</option><option value="week">Son 7 Gün</option>
+                </select>
+            </div>
+            <div id="analysisResults" class="analiz-grid"></div>
+        </div>
+
+        <div id="karsilastirma" class="tab-content">
+            <h2>Yatırım Aracı Karşılaştırması</h2>
+            <div class="form-group">
+                <label for="comparisonPeriod">Karşılaştırma Periyodu:</label>
+                <select id="comparisonPeriod" onchange="renderComparisonChart()">
+                    <option value="ytd">Yıl Başından Beri</option><option value="1y">Son 1 Yıl</option>
+                    <option value="6m">Son 6 Ay</option><option value="3m">Son 3 Ay</option>
+                </select>
+            </div>
+            <div id="comparisonChartContainer"><canvas id="comparisonChart"></canvas></div>
+        </div>
+
+        <div id="notlar" class="tab-content">
+            <h2>Not Defteri</h2>
+            <textarea id="notes" placeholder="Stratejilerinizi, düşüncelerinizi ve piyasa gözlemlerinizi buraya yazabilirsiniz..."></textarea>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        // SİZİN TARAFINIZDAN SAĞLANAN FIREBASE YAPILANDIRMASI
+        const firebaseConfig = {
+            apiKey: "AIzaSyC5v9nAVzbX69aMFFm1b9IriYnh6vbHL8I",
+            authDomain: "trader-gunluk.firebaseapp.com",
+            projectId: "trader-gunluk",
+            storageBucket: "trader-gunluk.firebasestorage.app",
+            messagingSenderId: "332416015708",
+            appId: "1:332416015708:web:200b50f0e773989324b599"
+        };
+
+        // Firebase'i Başlat
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // GLOBAL DEĞİŞKENLER
+        let transactions = [];
+        let kasa = { initial: 0, additions: 0, current: 0 };
+        let notes = '';
+        let comparisonChartInstance, kasaChartInstance, winRateChartInstance;
+
+        // TABS
+        function openTab(evt, tabName) {
+            let i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) tabcontent[i].style.display = "none";
+            tablinks = document.getElementsByClassName("tab-link");
+            for (i = 0; i < tablinks.length; i++) tablinks[i].className = tablinks[i].className.replace(" active", "");
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // GERÇEK ZAMANLI VERİ YÖNETİMİ (YENİ)
+        function loadRealtimeData() {
+            // Kasa ve Notları dinle
+            db.collection("settings").onSnapshot(snapshot => {
+                snapshot.forEach(doc => {
+                    if (doc.id === "kasa") {
+                        kasa = doc.data();
+                        document.getElementById('initialKasa').value = kasa.initial;
+                    }
+                    if (doc.id === "notes") {
+                        notes = doc.data().content;
+                        document.getElementById('notes').value = notes;
+                    }
+                });
+                renderAll();
+            });
+
+            // İşlemleri dinle
+            db.collection("transactions").orderBy("entryDate", "desc").onSnapshot(snapshot => {
+                transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderAll();
+            });
+        }
+
+        // KASA YÖNETİMİ (GÜNCELLENDİ)
+        async function updateKasa() {
+            const initialInput = document.getElementById('initialKasa');
+            const additionInput = document.getElementById('kasaAddition');
+            const newInitial = parseFloat(initialInput.value) || kasa.initial || 0;
+            const addition = parseFloat(additionInput.value) || 0;
+            
+            const newKasaState = {
+                initial: newInitial,
+                additions: (kasa.additions || 0) + addition
+            };
+
+            await db.collection("settings").doc("kasa").set(newKasaState, { merge: true });
+            additionInput.value = '';
+        }
+
+        // TEKİL İŞLEM YÖNETİMİ (GÜNCELLENDİ)
+        document.getElementById('transactionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const transaction = {
+                code: document.getElementById('code').value.toUpperCase(),
+                positionSize: parseFloat(document.getElementById('positionSize').value),
+                entryDate: document.getElementById('entryDate').value,
+                entryLot: parseInt(document.getElementById('entryLot').value),
+                entryPrice: parseFloat(document.getElementById('entryPrice').value),
+                exitDate: document.getElementById('exitDate').value,
+                exitLot: parseInt(document.getElementById('exitLot').value) || 0,
+                exitPrice: parseFloat(document.getElementById('exitPrice').value) || 0,
+            };
+            calculateTransactionDetails(transaction);
+            await db.collection("transactions").add(transaction);
+            e.target.reset();
+        });
+        
+        async function deleteTransaction(id) {
+            if (confirm('Bu işlemi silmek istediğinizden emin misiniz?')) {
+                await db.collection("transactions").doc(id).delete();
+            }
+        }
+        
+        // TOPLU İŞLEM YÖNETİMİ (GÜNCELLENDİ)
+        async function processBulkData() {
+            const rawData = document.getElementById('bulkData').value;
+            const lines = rawData.split('\n').filter(line => line.trim() !== '');
+            let rawOrders = [];
+            for (let i = 1; i < lines.length; i++) {
+                try {
+                    const parts = lines[i].trim().split(/\s+/);
+                    if (parts.length < 5) continue;
+                    const dateParts = parts[0].split('/');
+                    if (dateParts.length !== 3) continue;
+                    const formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                    const order = { date: formattedDate, code: parts[1], type: parts[2], price: parseFloat(parts[3].replace(',', '.')), lot: parseInt(parts[4].replace(',', '.')) };
+                    if (!order.date || !order.code || !order.type || isNaN(order.price) || isNaN(order.lot) || order.lot === 0) continue;
+                    rawOrders.push(order);
+                } catch (error) { console.error("Satır işlenirken hata:", lines[i], error); }
+            }
+
+            if (rawOrders.length === 0) return alert("Veri formatı tanınamadı veya geçerli işlem bulunamadı.");
+            
+            rawOrders.sort((a, b) => new Date(a.date) - new Date(b.date));
+            const tradesByCode = {};
+            rawOrders.forEach(o => {
+                if (!tradesByCode[o.code]) tradesByCode[o.code] = { buys: [], sells: [] };
+                o.type === 'Alış' ? tradesByCode[o.code].buys.push(o) : tradesByCode[o.code].sells.push(o);
+            });
+
+            let newTransactions = [];
+            for (const code in tradesByCode) {
+                const { buys, sells } = tradesByCode[code];
+                sells.forEach(sell => {
+                    let sellLot = sell.lot;
+                    while (sellLot > 0 && buys.length > 0) {
+                        const buy = buys[0];
+                        const matchedLot = Math.min(sellLot, buy.lot);
+                        const entryValue = matchedLot * buy.price;
+                        const posSize = (kasa.initial > 0) ? (entryValue / kasa.initial) * 100 : 0;
+                        newTransactions.push({
+                            code: code, positionSize: posSize, entryDate: buy.date, entryLot: matchedLot, entryPrice: buy.price,
+                            exitDate: sell.date, exitLot: matchedLot, exitPrice: sell.price
+                        });
+                        sellLot -= matchedLot;
+                        buy.lot -= matchedLot;
+                        if (buy.lot < 0.001) buys.shift();
+                    }
+                });
+            }
+
+            if (newTransactions.length > 0) {
+                const batch = db.batch();
+                newTransactions.forEach(t => {
+                    calculateTransactionDetails(t);
+                    const docRef = db.collection("transactions").doc();
+                    batch.set(docRef, t);
+                });
+                await batch.commit();
+                alert(`${newTransactions.length} adet yeni kapalı pozisyon başarıyla eklendi!`);
+                document.getElementById('bulkData').value = '';
+            } else {
+                alert("Yapıştırılan verilerde eşleşen (alış-satış) kapalı pozisyon bulunamadı.");
+            }
+        }
+        
+        // NOT DEFTERİ (GÜNCELLENDİ)
+        document.getElementById('notes').addEventListener('keyup', function() {
+            // Her tuş vuruşunda kaydetmeyi önlemek için bir zamanlayıcı kullan
+            clearTimeout(this.timer);
+            this.timer = setTimeout(async () => {
+                notes = this.value;
+                await db.collection("settings").doc("notes").set({ content: notes });
+            }, 500); // 500ms bekleme süresi
+        });
+
+        // HESAPLAMA VE GÖRÜNTÜLEME FONKSİYONLARI
+        function calculateTransactionDetails(t) {
+            if (!t.entryLot || !t.entryPrice) return;
+            const entryValue = t.entryLot * t.entryPrice;
+            if (t.exitDate && t.exitLot > 0 && t.exitPrice > 0) {
+                const exitValue = t.exitLot * t.exitPrice;
+                const pnlTL = exitValue - entryValue;
+                t.pnlPerc = entryValue !== 0 ? (pnlTL / entryValue) * 100 : 0;
+                const entryD = new Date(t.entryDate);
+                const exitD = new Date(t.exitDate);
+                t.holdingPeriod = Math.round((exitD - entryD) / (1000 * 60 * 60 * 24));
+                calculateCurrentKasa();
+                const kasaBeforePnl = kasa.current - pnlTL;
+                t.kasaEtkisi = (kasaBeforePnl > 0) ? (pnlTL / kasaBeforePnl) * 100 : 0;
+                t.pnlTL = pnlTL;
+            } else {
+                t.pnlTL = null; t.pnlPerc = null; t.holdingPeriod = null; t.kasaEtkisi = null;
+            }
+        }
+
+        function calculateCurrentKasa() {
+            const totalPnl = transactions.reduce((acc, t) => acc + (t.pnlTL || 0), 0);
+            kasa.current = (kasa.initial || 0) + (kasa.additions || 0) + totalPnl;
+        }
+
+        function updateKasaDisplay() {
+            calculateCurrentKasa();
+            document.getElementById('kasaValue').textContent = kasa.current.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
+        }
+        
+        function renderAll() {
+            renderTable();
+            updateKasaDisplay();
+            renderDashboard();
+            renderAnalysis();
+            renderComparisonChart();
+        }
+        
+        function renderTable() {
+            const tableBody = document.getElementById('transactionTable').getElementsByTagName('tbody')[0];
+            tableBody.innerHTML = '';
+            transactions.forEach(t => {
+                const row = tableBody.insertRow();
+                const pnlClass = t.pnlTL > 0 ? 'profit' : t.pnlTL < 0 ? 'loss' : '';
+                row.innerHTML = `
+                    <td>${t.code}</td>
+                    <td>${t.positionSize ? t.positionSize.toFixed(2) + '%' : 'N/A'}</td>
+                    <td>${t.entryDate}</td>
+                    <td>${t.entryLot}</td>
+                    <td>${t.entryPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3})}</td>
+                    <td>${t.exitDate || 'Açık'}</td>
+                    <td>${t.exitLot || '-'}</td>
+                    <td>${t.exitPrice ? t.exitPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3}) : '-'}</td>
+                    <td>${t.holdingPeriod !== null ? t.holdingPeriod : '-'}</td>
+                    <td class="${pnlClass}">${t.pnlPerc !== null ? t.pnlPerc.toFixed(2) + '%' : '-'}</td>
+                    <td class="${pnlClass}">${t.pnlTL !== null ? t.pnlTL.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'}) : '-'}</td>
+                    <td class="${pnlClass}">${t.kasaEtkisi !== null ? t.kasaEtkisi.toFixed(2) + '%' : '-'}</td>
+                    <td><button onclick="deleteTransaction('${t.id}')">Sil</button></td>`;
+            });
+        }
+        
+        function renderDashboard() {
+            const grid = document.getElementById('dashboardGrid');
+            grid.innerHTML = ''; 
+            const closed = transactions.filter(t => t.pnlTL !== null);
+            if (kasa.initial === 0 && closed.length === 0) {
+                grid.innerHTML = "<p>Lütfen 'İşlem Listesi' sekmesinden başlangıç kasanızı ve işlemlerinizi girin.</p>";
+                return;
+            }
+            const pnl = closed.reduce((a, t) => a + t.pnlTL, 0);
+            const capital = kasa.initial + kasa.additions;
+            const ret = capital > 0 ? (pnl / capital) * 100 : 0;
+            const wins = closed.filter(t => t.pnlTL > 0);
+            const winRate = closed.length > 0 ? (wins.length / closed.length) * 100 : 0;
+            const grossProfit = wins.reduce((a, t) => a + t.pnlTL, 0);
+            const grossLoss = closed.filter(t => t.pnlTL < 0).reduce((a, t) => a + t.pnlTL, 0);
+            const pFactor = grossLoss !== 0 ? Math.abs(grossProfit / grossLoss) : Infinity;
+            const avgHold = closed.length > 0 ? (closed.reduce((a, t) => a + (t.holdingPeriod || 0), 0) / closed.length) : 0;
+            const cards = [
+                { title: 'Net PnL (TL)', value: pnl.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' }), class: pnl >= 0 ? 'profit' : 'loss' },
+                { title: 'Toplam Getiri (%)', value: `${isFinite(ret) ? ret.toFixed(2) : '0.00'}%`, class: ret >= 0 ? 'profit' : 'loss' },
+                { title: 'Kazanma Oranı', value: `${winRate.toFixed(2)}%` },
+                { title: 'Profit Factor', value: isFinite(pFactor) ? pFactor.toFixed(2) : '∞' },
+                { title: 'Tamamlanan İşlem', value: closed.length },
+                { title: 'Ort. Pozisyon Süresi', value: `${avgHold.toFixed(1)} gün` }
+            ];
+            cards.forEach(c => grid.innerHTML += `<div class="dashboard-card"><h4>${c.title}</h4><p class="${c.class||''}">${c.value}</p></div>`);
+            renderDashboardCharts(closed);
+        }
+
+        function renderDashboardCharts(closedTrades) {
+            // Kasa Growth Chart
+            if (kasaChartInstance) kasaChartInstance.destroy();
+            const kasaCtx = document.getElementById('kasaGrowthChart').getContext('2d');
+            const sortedTrades = closedTrades.slice().sort((a,b) => new Date(a.exitDate) - new Date(b.exitDate));
+            const labels = ['Başlangıç'];
+            const data = [(kasa.initial || 0) + (kasa.additions || 0)];
+            let currentKasa = (kasa.initial || 0) + (kasa.additions || 0);
+            sortedTrades.forEach(t => {
+                currentKasa += t.pnlTL;
+                labels.push(t.exitDate);
+                data.push(currentKasa);
+            });
+            kasaChartInstance = new Chart(kasaCtx, {
+                type: 'line', data: { labels, datasets: [{ label: 'Kasa Büyümesi (TL)', data, borderColor: 'rgba(26, 188, 156, 1)', backgroundColor: 'rgba(26, 188, 156, 0.1)', fill: true, tension: 0.1 }] },
+                options: { responsive: true, plugins: { legend: { labels: { color: 'white' } }, title: { display: true, text: 'Kasa Değerinin Zamana Göre Değişimi', color: 'white' } }, scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white' } } } }
+            });
+
+            // Win Rate Chart
+            if (winRateChartInstance) winRateChartInstance.destroy();
+            const winRateCtx = document.getElementById('winRateChart').getContext('2d');
+            const wins = closedTrades.filter(t => t.pnlTL > 0).length;
+            const losses = closedTrades.length - wins;
+            winRateChartInstance = new Chart(winRateCtx, {
+                type: 'doughnut', data: { labels: ['Kazanan İşlemler', 'Kaybeden İşlemler'], datasets: [{ data: [wins, losses], backgroundColor: [ 'rgba(46, 204, 113, 0.8)', 'rgba(231, 76, 60, 0.8)' ], borderColor: [ '#2ecc71', '#e74c3c' ], borderWidth: 1 }] },
+                options: { responsive: true, plugins: { legend: { position: 'top', labels: { color: 'white' } }, title: { display: true, text: 'Kazanma Oranı', color: 'white' } } }
+            });
+        }
+
+        function renderAnalysis() {
+            const container = document.getElementById('analysisResults');
+            container.innerHTML = '';
+            const period = document.getElementById('analysisPeriod').value;
+            const now = new Date();
+            const trades = transactions.filter(t => {
+                if(t.pnlTL === null) return false;
+                const exitDate = new Date(t.exitDate);
+                if (period === 'all') return true;
+                if (period === 'ytd') return exitDate.getFullYear() === now.getFullYear();
+                const diff = (now - exitDate) / (1000 * 3600 * 24);
+                if (period === 'quarter') return diff <= 90;
+                if (period === 'month') return diff <= 30;
+                if (period === 'week') return diff <= 7;
+                return false;
+            });
+            if (trades.length === 0) {
+                container.innerHTML = '<p>Seçilen periyot için analiz edilecek veri bulunmuyor.</p>'; return;
+            }
+            const wins = trades.filter(t => t.pnlTL > 0);
+            const losses = trades.filter(t => t.pnlTL < 0);
+            const data = [
+                { l: 'Açılan Pozisyon Sayısı', v: trades.length },
+                { l: 'Win Rate', v: `${(wins.length / trades.length * 100).toFixed(2)}%` },
+                { l: 'Kazananların Ort. (%)', v: `${(wins.reduce((a, t) => a + t.pnlPerc, 0) / (wins.length||1)).toFixed(2)}%`, c: 'profit' },
+                { l: 'Kazananların Ort. (TL)', v: `${(wins.reduce((a, t) => a + t.pnlTL, 0) / (wins.length||1)).toLocaleString('tr-TR')} TL`, c: 'profit' },
+                { l: 'Kaybedenlerin Ort. (%)', v: `${(losses.reduce((a, t) => a + t.pnlPerc, 0) / (losses.length||1)).toFixed(2)}%`, c: 'loss' },
+                { l: 'Kaybedenlerin Ort. (TL)', v: `${(losses.reduce((a, t) => a + t.pnlTL, 0) / (losses.length||1)).toLocaleString('tr-TR')} TL`, c: 'loss' },
+                { l: 'Ortalama Gün Sayısı', v: `${(trades.reduce((a, t) => a + (t.holdingPeriod || 0), 0) / trades.length).toFixed(1)} gün` },
+                { l: 'Profit Factor', v: Math.abs(wins.reduce((a,t)=>a+t.pnlTL,0) / (losses.reduce((a,t)=>a+t.pnlTL,0)||1)).toFixed(2) },
+                { l: 'Net PnL (TL)', v: `${trades.reduce((a,t)=>a+t.pnlTL,0).toLocaleString('tr-TR')} TL`, c: trades.reduce((a,t)=>a+t.pnlTL,0)>0 ? 'profit' : 'loss' },
+            ];
+            trades.sort((a,b) => new Date(a.exitDate) - new Date(b.exitDate));
+            let peak = (kasa.initial || 0) + (kasa.additions || 0);
+            let maxDD = 0;
+            let pnl = 0;
+            trades.forEach(t => {
+                pnl += t.pnlTL;
+                let val = (kasa.initial || 0) + (kasa.additions || 0) + pnl;
+                peak = Math.max(peak, val);
+                const dd = peak > 0 ? ((peak - val) / peak) * 100 : 0;
+                if (dd > maxDD) maxDD = dd;
+            });
+            data.push({l:'Max Drawdown', v: `${maxDD.toFixed(2)}%`, c:'loss'});
+            data.forEach(item => container.innerHTML += `<div class="analiz-card"><h4>${item.l}</h4><p class="${item.c||''}">${item.v}</p></div>`);
+        }
+        
+        function renderComparisonChart() {
+            if (typeof Chart === 'undefined') return;
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
+            const pData = {
+                'ytd': {'Türk Lirası':0,'Bist 100':18,'Gram Altın':25,'Dolar':15,'Euro':12,'Bitcoin':45,'Vadeli Mevduat':22,'Fon(HKH)':28,'BES':17,'GÜMÜŞ':20},
+                '1y': {'Türk Lirası':0,'Bist 100':40,'Gram Altın':55,'Dolar':35,'Euro':30,'Bitcoin':110,'Vadeli Mevduat':45,'Fon(HKH)':50,'BES':35,'GÜMÜŞ':45},
+                '6m': {'Türk Lirası':0,'Bist 100':25,'Gram Altın':30,'Dolar':20,'Euro':18,'Bitcoin':60,'Vadeli Mevduat':23,'Fon(HKH)':35,'BES':22,'GÜMÜŞ':28},
+                '3m': {'Türk Lirası':0,'Bist 100':12,'Gram Altın':15,'Dolar':8,'Euro':7,'Bitcoin':20,'Vadeli Mevduat':11,'Fon(HKH)':18,'BES':12,'GÜMÜŞ':14}
+            };
+            const period = document.getElementById('comparisonPeriod').value;
+            const data = pData[period] || pData['ytd'];
+            const pnl = transactions.filter(t => t.pnlTL !== null).reduce((a, t) => a + t.pnlTL, 0);
+            const capital = (kasa.initial || 0) + (kasa.additions || 0);
+            data['Sizin Performansınız'] = capital > 0 ? (pnl / capital) * 100 : 0;
+            const labels = Object.keys(data), values = Object.values(data);
+            const colorPalette = ['#e67e22', '#3498db', '#9b59b6', '#f1c40f', '#27ae60', '#e74c3c', '#8e44ad', '#d35400', '#c0392b', '#7f8c8d'];
+            const bgColors = labels.map((label, index) => label === 'Sizin Performansınız' ? '#1abc9c' : colorPalette[index % colorPalette.length]);
+            if (comparisonChartInstance) comparisonChartInstance.destroy();
+            comparisonChartInstance = new Chart(ctx, {
+                type: 'bar', data: { labels, datasets: [{ label: 'Dönemlik Getiri (%)', data: values, backgroundColor: bgColors }] },
+                options: { indexAxis: 'y', scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white' } } }, plugins: { legend: { display: false } } }
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', loadRealtimeData);
+
+    </script>
+</body>
+</html>
