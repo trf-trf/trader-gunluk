@@ -161,16 +161,58 @@
         }
         textarea {
             width: 100%;
-            height: 250px;
+            height: 100px;
             box-sizing: border-box;
-            white-space: pre;
-            overflow-wrap: normal;
-            overflow-x: scroll;
         }
         .import-button {
             margin-top: 10px;
             width: 100%;
         }
+        /* YENİ NOT DEFTERİ STİLLERİ */
+        .note-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        #newNoteInput {
+            flex-grow: 1;
+        }
+        #notesList {
+            list-style: none;
+            padding: 0;
+        }
+        .note-item {
+            background-color: var(--secondary-color);
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            word-break: break-word;
+        }
+        .note-content {
+            flex-grow: 1;
+        }
+        .note-date {
+            font-size: 12px;
+            color: #bdc3c7;
+            margin-bottom: 5px;
+        }
+        .note-text {
+            white-space: pre-wrap;
+        }
+        .note-delete-btn {
+            background-color: var(--loss-color);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 15px;
+            flex-shrink: 0;
+        }
+
         @media (max-width: 900px) {
             .dashboard-chart-grid {
                 grid-template-columns: 1fr;
@@ -215,7 +257,7 @@
             <h2>Toplu İşlem Girişi</h2>
             <div class="form-group">
                 <label for="bulkData">Aracı kurum verilerini (başlık satırı dahil) buraya yapıştırın:</label>
-                <textarea id="bulkData" placeholder="Tarih	Hisse	Alış / Satış	Fiyat	Adet	Tutar..."></textarea>
+                <textarea id="bulkData" placeholder="Tarih	Hisse	Alış / Satış	Fiyat	Adet	Tutar..." style="height: 250px; white-space: pre; overflow-wrap: normal; overflow-x: scroll;"></textarea>
                 <button type="button" class="import-button" onclick="processBulkData()">İşlemleri Aktar</button>
             </div>
             <hr style="border-color: var(--border-color); margin: 30px 0;">
@@ -273,7 +315,7 @@
         </div>
 
         <div id="karsilastirma" class="tab-content">
-            <h2>Yatırım Aracı Karşılaştırması</h2>
+            <h2>Reel Getiri Karşılaştırması (Enflasyondan Arındırılmış)</h2>
             <div class="form-group">
                 <label for="comparisonPeriod">Karşılaştırma Periyodu:</label>
                 <select id="comparisonPeriod" onchange="renderComparisonChart()">
@@ -281,14 +323,22 @@
                     <option value="ytd">Yıl Başından Beri</option>
                     <option value="6m">Son 6 Ay</option>
                     <option value="3m">Son 3 Ay</option>
-                    <option value="1m">Son 30 Gün</option> <option value="1w">Son 7 Gün</option> </select>
+                    <option value="1m">Son 30 Gün</option>
+                    <option value="1w">Son 7 Gün</option>
+                </select>
             </div>
             <div id="comparisonChartContainer"><canvas id="comparisonChart"></canvas></div>
         </div>
 
         <div id="notlar" class="tab-content">
-            <h2>Not Defteri</h2>
-            <textarea id="notes" placeholder="Stratejilerinizi, düşüncelerinizi ve piyasa gözlemlerinizi buraya yazabilirsiniz..."></textarea>
+             <h2>Not Defteri</h2>
+            <form id="noteForm" class="note-form">
+                <textarea id="newNoteInput" placeholder="Yeni bir not yazın..." required></textarea>
+                <button type="submit">Not Ekle</button>
+            </form>
+            <h3>Kaydedilmiş Notlar</h3>
+            <ul id="notesList">
+            </ul>
         </div>
     </div>
 
@@ -297,7 +347,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <script>
-        // SİZİN TARAFINIZDAN SAĞLANAN FIREBASE YAPILANDIRMASI
+        // FIREBASE YAPILANDIRMASI
         const firebaseConfig = {
             apiKey: "AIzaSyC5v9nAVzbX69aMFFm1b9IriYnh6vbHL8I",
             authDomain: "trader-gunluk.firebaseapp.com",
@@ -306,15 +356,13 @@
             messagingSenderId: "332416015708",
             appId: "1:332416015708:web:200b50f0e773989324b599"
         };
-
-        // Firebase'i Başlat
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
         // GLOBAL DEĞİŞKENLER
         let transactions = [];
+        let notes = [];
         let kasa = { initial: 0, additions: 0, current: 0 };
-        let notes = '';
         let comparisonChartInstance, kasaChartInstance, winRateChartInstance;
 
         // TABS
@@ -330,20 +378,15 @@
 
         // GERÇEK ZAMANLI VERİ YÖNETİMİ
         function loadRealtimeData() {
-            db.collection("settings").onSnapshot(snapshot => {
-                snapshot.forEach(doc => {
-                    if (doc.id === "kasa") {
-                        kasa = doc.data();
-                        document.getElementById('initialKasa').value = kasa.initial;
-                    }
-                    if (doc.id === "notes") {
-                        notes = doc.data().content;
-                        document.getElementById('notes').value = notes;
-                    }
-                });
+            db.collection("settings").doc("kasa").onSnapshot(doc => {
+                if (doc.exists) kasa = doc.data(); else db.collection("settings").doc("kasa").set(kasa);
+                document.getElementById('initialKasa').value = kasa.initial;
                 renderAll();
             });
-
+            db.collection("notes").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+                notes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderNotes();
+            });
             db.collection("transactions").orderBy("entryDate", "desc").onSnapshot(snapshot => {
                 transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 renderAll();
@@ -356,12 +399,7 @@
             const additionInput = document.getElementById('kasaAddition');
             const newInitial = parseFloat(initialInput.value) || kasa.initial || 0;
             const addition = parseFloat(additionInput.value) || 0;
-            
-            const newKasaState = {
-                initial: newInitial,
-                additions: (kasa.additions || 0) + addition
-            };
-
+            const newKasaState = { initial: newInitial, additions: (kasa.additions || 0) + addition };
             await db.collection("settings").doc("kasa").set(newKasaState, { merge: true });
             additionInput.value = '';
         }
@@ -407,16 +445,13 @@
                     rawOrders.push(order);
                 } catch (error) { console.error("Satır işlenirken hata:", lines[i], error); }
             }
-
             if (rawOrders.length === 0) return alert("Veri formatı tanınamadı veya geçerli işlem bulunamadı.");
-            
             rawOrders.sort((a, b) => new Date(a.date) - new Date(b.date));
             const tradesByCode = {};
             rawOrders.forEach(o => {
                 if (!tradesByCode[o.code]) tradesByCode[o.code] = { buys: [], sells: [] };
                 o.type === 'Alış' ? tradesByCode[o.code].buys.push(o) : tradesByCode[o.code].sells.push(o);
             });
-
             let newTransactions = [];
             for (const code in tradesByCode) {
                 const { buys, sells } = tradesByCode[code];
@@ -437,7 +472,6 @@
                     }
                 });
             }
-
             if (newTransactions.length > 0) {
                 const batch = db.batch();
                 newTransactions.forEach(t => {
@@ -453,14 +487,39 @@
             }
         }
         
-        // NOT DEFTERİ
-        document.getElementById('notes').addEventListener('keyup', function() {
-            clearTimeout(this.timer);
-            this.timer = setTimeout(async () => {
-                notes = this.value;
-                await db.collection("settings").doc("notes").set({ content: notes });
-            }, 500);
+        // NOT DEFTERİ YÖNETİMİ
+        document.getElementById('noteForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const noteInput = document.getElementById('newNoteInput');
+            const noteText = noteInput.value.trim();
+            if (noteText === '') return;
+            const newNote = { text: noteText, createdAt: new Date() };
+            await db.collection("notes").add(newNote);
+            noteInput.value = '';
         });
+
+        async function deleteNote(id) {
+            if (confirm('Bu notu silmek istediğinizden emin misiniz?')) {
+                await db.collection("notes").doc(id).delete();
+            }
+        }
+
+        function renderNotes() {
+            const notesList = document.getElementById('notesList');
+            notesList.innerHTML = '';
+            notes.forEach(note => {
+                const li = document.createElement('li');
+                li.className = 'note-item';
+                const noteDate = note.createdAt.toDate ? note.createdAt.toDate().toLocaleString('tr-TR') : new Date().toLocaleString('tr-TR');
+                li.innerHTML = `
+                    <div class="note-content">
+                        <div class="note-date">${noteDate}</div>
+                        <div class="note-text">${note.text}</div>
+                    </div>
+                    <button class="note-delete-btn" onclick="deleteNote('${note.id}')">Sil</button>`;
+                notesList.appendChild(li);
+            });
+        }
 
         // HESAPLAMA VE GÖRÜNTÜLEME FONKSİYONLARI
         function calculateTransactionDetails(t) {
@@ -507,13 +566,10 @@
                 const row = tableBody.insertRow();
                 const pnlClass = t.pnlTL > 0 ? 'profit' : t.pnlTL < 0 ? 'loss' : '';
                 row.innerHTML = `
-                    <td>${t.code}</td>
-                    <td>${t.positionSize ? t.positionSize.toFixed(2) + '%' : 'N/A'}</td>
-                    <td>${t.entryDate}</td>
-                    <td>${t.entryLot}</td>
+                    <td>${t.code}</td><td>${t.positionSize ? t.positionSize.toFixed(2) + '%' : 'N/A'}</td>
+                    <td>${t.entryDate}</td><td>${t.entryLot}</td>
                     <td>${t.entryPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3})}</td>
-                    <td>${t.exitDate || 'Açık'}</td>
-                    <td>${t.exitLot || '-'}</td>
+                    <td>${t.exitDate || 'Açık'}</td><td>${t.exitLot || '-'}</td>
                     <td>${t.exitPrice ? t.exitPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3}) : '-'}</td>
                     <td>${t.holdingPeriod !== null ? t.holdingPeriod : '-'}</td>
                     <td class="${pnlClass}">${t.pnlPerc !== null ? t.pnlPerc.toFixed(2) + '%' : '-'}</td>
@@ -528,8 +584,7 @@
             grid.innerHTML = ''; 
             const closed = transactions.filter(t => t.pnlTL !== null);
             if (!kasa.initial && closed.length === 0) {
-                grid.innerHTML = "<p>Lütfen 'İşlem Listesi' sekmesinden başlangıç kasanızı ve işlemlerinizi girin.</p>";
-                return;
+                grid.innerHTML = "<p>Lütfen 'İşlem Listesi' sekmesinden başlangıç kasanızı ve işlemlerinizi girin.</p>"; return;
             }
             const pnl = closed.reduce((a, t) => a + t.pnlTL, 0);
             const capital = kasa.initial + kasa.additions;
@@ -584,15 +639,13 @@
             container.innerHTML = '';
             const period = document.getElementById('analysisPeriod').value;
             const trades = filterTradesByPeriod(transactions.filter(t => t.pnlTL !== null), period);
-            
             if (trades.length === 0) {
                 container.innerHTML = '<p>Seçilen periyot için analiz edilecek veri bulunmuyor.</p>'; return;
             }
             const wins = trades.filter(t => t.pnlTL > 0);
             const losses = trades.filter(t => t.pnlTL < 0);
             const data = [
-                { l: 'Açılan Pozisyon Sayısı', v: trades.length },
-                { l: 'Win Rate', v: `${(wins.length / trades.length * 100).toFixed(2)}%` },
+                { l: 'Açılan Pozisyon Sayısı', v: trades.length }, { l: 'Win Rate', v: `${(wins.length / trades.length * 100).toFixed(2)}%` },
                 { l: 'Kazananların Ort. (%)', v: `${(wins.reduce((a, t) => a + t.pnlPerc, 0) / (wins.length||1)).toFixed(2)}%`, c: 'profit' },
                 { l: 'Kazananların Ort. (TL)', v: `${(wins.reduce((a, t) => a + t.pnlTL, 0) / (wins.length||1)).toLocaleString('tr-TR')} TL`, c: 'profit' },
                 { l: 'Kaybedenlerin Ort. (%)', v: `${(losses.reduce((a, t) => a + t.pnlPerc, 0) / (losses.length||1)).toFixed(2)}%`, c: 'loss' },
@@ -603,8 +656,7 @@
             ];
             trades.sort((a,b) => new Date(a.exitDate) - new Date(b.exitDate));
             let peak = (kasa.initial || 0) + (kasa.additions || 0);
-            let maxDD = 0;
-            let pnl = 0;
+            let maxDD = 0; let pnl = 0;
             trades.forEach(t => {
                 pnl += t.pnlTL;
                 let val = (kasa.initial || 0) + (kasa.additions || 0) + pnl;
@@ -618,32 +670,93 @@
         
         function renderComparisonChart() {
             if (typeof Chart === 'undefined') return;
-            const ctx = document.getElementById('comparisonChart').getContext('2d');
-            const pData = {
-                '1y': {'Türk Lirası':0,'Bist 100':40,'Gram Altın':55,'Dolar':35,'Euro':30,'Bitcoin':110,'Vadeli Mevduat':45,'Fon(HKH)':50,'BES':35,'GÜMÜŞ':45},
-                'ytd': {'Türk Lirası':0,'Bist 100':18,'Gram Altın':25,'Dolar':15,'Euro':12,'Bitcoin':45,'Vadeli Mevduat':22,'Fon(HKH)':28,'BES':17,'GÜMÜŞ':20},
-                '6m': {'Türk Lirası':0,'Bist 100':25,'Gram Altın':30,'Dolar':20,'Euro':18,'Bitcoin':60,'Vadeli Mevduat':23,'Fon(HKH)':35,'BES':22,'GÜMÜŞ':28},
-                '3m': {'Türk Lirası':0,'Bist 100':12,'Gram Altın':15,'Dolar':8,'Euro':7,'Bitcoin':20,'Vadeli Mevduat':11,'Fon(HKH)':18,'BES':12,'GÜMÜŞ':14},
-                '1m': {'Türk Lirası':0,'Bist 100':4,'Gram Altın':5,'Dolar':2,'Euro':1.5,'Bitcoin':8,'Vadeli Mevduat':3.5,'Fon(HKH)':4.5,'BES':3,'GÜMÜŞ':6}, // YENİ
-                '1w': {'Türk Lirası':0,'Bist 100':1.5,'Gram Altın':2,'Dolar':0.5,'Euro':0.3,'Bitcoin':3,'Vadeli Mevduat':0.8,'Fon(HKH)':1.2,'BES':0.7,'GÜMÜŞ':2.5} // YENİ
+
+            // VERİ SETLERİ
+            const nominalReturns = {
+                '1y':  {'Bist 100':40, 'Gram Altın':55, 'Dolar':35, 'Euro':30, 'Bitcoin':110, 'GÜMÜŞ':45, 'MAC Fonu': 153},
+                'ytd': {'Bist 100':18, 'Gram Altın':25, 'Dolar':15, 'Euro':12, 'Bitcoin':45, 'GÜMÜŞ':20, 'MAC Fonu': 45},
+                '6m':  {'Bist 100':25, 'Gram Altın':30, 'Dolar':20, 'Euro':18, 'Bitcoin':60, 'GÜMÜŞ':28, 'MAC Fonu': 35},
+                '3m':  {'Bist 100':12, 'Gram Altın':15, 'Dolar':8, 'Euro':7, 'Bitcoin':20, 'GÜMÜŞ':14, 'MAC Fonu': 18},
+                '1m':  {'Bist 100':4, 'Gram Altın':5, 'Dolar':2, 'Euro':1.5, 'Bitcoin':8, 'GÜMÜŞ':6, 'MAC Fonu': 1},
+                '1w':  {'Bist 100':1.5,'Gram Altın':2, 'Dolar':0.5, 'Euro':0.3, 'Bitcoin':3, 'GÜMÜŞ':2.5, 'MAC Fonu': 0.5}
             };
+            const inflationRates = { '1y': 32.95, 'ytd': 21.50, '6m': 11.50, '3m': 5.55, '1m': 2.04, '1w': 0.47 };
+
+            const ctx = document.getElementById('comparisonChart').getContext('2d');
             const period = document.getElementById('comparisonPeriod').value;
-            const data = pData[period] || pData['ytd'];
             
-            // Sizin performansınızı seçilen periyoda göre hesapla
+            // Seçili periyodun nominal ve enflasyon verilerini al
+            const periodNominalData = { ...(nominalReturns[period] || nominalReturns['ytd']) };
+            const periodInflation = inflationRates[period] || inflationRates['ytd'];
+
+            // TRF Performansını hesapla ve ekle
             const periodTrades = filterTradesByPeriod(transactions.filter(t => t.pnlTL !== null), period);
             const periodPnl = periodTrades.reduce((a, t) => a + t.pnlTL, 0);
-            const capital = (kasa.initial || 0) + (kasa.additions || 0); // Başlangıç sermayesi sabit kalır
-            data['Sizin Performansınız'] = capital > 0 ? (periodPnl / capital) * 100 : 0;
+            const capital = (kasa.initial || 0) + (kasa.additions || 0);
+            periodNominalData['TRF Performans'] = capital > 0 ? (periodPnl / capital) * 100 : 0;
 
-            const labels = Object.keys(data), values = Object.values(data);
-            const colorPalette = ['#e67e22', '#3498db', '#9b59b6', '#f1c40f', '#27ae60', '#e74c3c', '#8e44ad', '#d35400', '#c0392b', '#7f8c8d'];
-            const bgColors = labels.map((label, index) => label === 'Sizin Performansınız' ? '#1abc9c' : colorPalette[index % colorPalette.length]);
+            // Reel getirileri hesapla
+            const realReturns = Object.keys(periodNominalData).map(label => {
+                const nominalReturn = periodNominalData[label] / 100;
+                const inflation = periodInflation / 100;
+                const realReturn = ((1 + nominalReturn) / (1 + inflation)) - 1;
+                return { label, value: realReturn * 100 };
+            });
+
+            // Reel getiriye göre büyükten küçüğe sırala
+            realReturns.sort((a, b) => b.value - a.value);
+
+            // Grafik için verileri ve renkleri hazırla
+            const labels = realReturns.map(d => d.label);
+            const data = realReturns.map(d => d.value);
             
+            const maxPositive = Math.max(0, ...data.filter(v => v > 0));
+            const minNegative = Math.min(0, ...data.filter(v => v < 0));
+
+            const bgColors = realReturns.map(d => {
+                if (d.value >= 0) {
+                    const intensity = maxPositive > 0 ? 0.3 + (d.value / maxPositive) * 0.7 : 0.7;
+                    return `rgba(46, 204, 113, ${intensity})`; // Yeşil
+                } else {
+                    const intensity = minNegative < 0 ? 0.3 + (d.value / minNegative) * 0.7 : 0.7;
+                    return `rgba(231, 76, 60, ${intensity})`; // Kırmızı
+                }
+            });
+
             if (comparisonChartInstance) comparisonChartInstance.destroy();
             comparisonChartInstance = new Chart(ctx, {
-                type: 'bar', data: { labels, datasets: [{ label: 'Dönemlik Getiri (%)', data: values, backgroundColor: bgColors }] },
-                options: { indexAxis: 'y', scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white' } } }, plugins: { legend: { display: false } } }
+                type: 'bar',
+                data: { 
+                    labels: labels, 
+                    datasets: [{ 
+                        label: 'Reel Getiri (%)', 
+                        data: data, 
+                        backgroundColor: bgColors 
+                    }] 
+                },
+                options: { 
+                    indexAxis: 'y',
+                    scales: { 
+                        x: { 
+                            ticks: { color: 'white', callback: value => value + '%' },
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        }, 
+                        y: { 
+                            ticks: { color: 'white' },
+                            grid: { display: false }
+                        } 
+                    }, 
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Reel Getiri: ${context.parsed.x.toFixed(2)}%`;
+                                }
+                            }
+                        }
+                    } 
+                }
             });
         }
 
@@ -656,14 +769,10 @@
                 
                 let daysToFilter;
                 switch (period) {
-                    case '1y': daysToFilter = 365; break;
-                    case '6m': daysToFilter = 182; break;
-                    case '3m': daysToFilter = 91; break;
-                    case '1m': daysToFilter = 30; break;
-                    case '1w': daysToFilter = 7; break;
-                    case 'quarter': daysToFilter = 91; break; // Analiz sekmesi için
-                    case 'month': daysToFilter = 30; break; // Analiz sekmesi için
-                    case 'week': daysToFilter = 7; break; // Analiz sekmesi için
+                    case '1y': daysToFilter = 365; break; case '6m': daysToFilter = 182; break;
+                    case '3m': daysToFilter = 91; break; case '1m': daysToFilter = 30; break;
+                    case '1w': daysToFilter = 7; break; case 'quarter': daysToFilter = 91; break;
+                    case 'month': daysToFilter = 30; break; case 'week': daysToFilter = 7; break;
                     default: return true;
                 }
                 const diff = (now - exitDate) / (1000 * 3600 * 24);
