@@ -101,121 +101,36 @@
         .button-group button {
             margin-left: 5px;
         }
-        .edit-btn {
-            background-color: var(--edit-color);
-        }
-        .edit-btn:hover {
-            background-color: #d68910;
-        }
-        .delete-btn {
-            background-color: var(--loss-color);
-            color: white;
-        }
-        .delete-btn:hover {
-            background-color: #c0392b;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid var(--border-color);
-            padding: 10px;
-            text-align: left;
-        }
-        th {
-            background-color: var(--secondary-color);
-        }
-        tr:nth-child(even) {
-            background-color: #3a506b;
-        }
+        .edit-btn { background-color: var(--edit-color); }
+        .edit-btn:hover { background-color: #d68910; }
+        .delete-btn { background-color: var(--loss-color); color: white; }
+        .delete-btn:hover { background-color: #c0392b; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid var(--border-color); padding: 10px; text-align: left; }
+        th { background-color: var(--secondary-color); }
+        tr:nth-child(even) { background-color: #3a506b; }
         .profit { color: var(--profit-color); }
         .loss { color: var(--loss-color); }
-        .kasa-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background-color: var(--secondary-color);
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.5);
-            text-align: center;
-            z-index: 1000;
-        }
-        .kasa-container h3 {
-            margin: 0 0 10px 0;
-            border: none;
-        }
-        .kasa-value {
-            font-size: 24px;
-            font-weight: bold;
-        }
-        .analiz-grid, .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 20px;
-        }
-        .analiz-card, .dashboard-card {
-            background-color: var(--secondary-color);
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-        }
-        .analiz-card h4, .dashboard-card h4 {
-            margin: 0 0 10px 0;
-            color: var(--accent-color);
-        }
-        .analiz-card p, .dashboard-card p {
-            font-size: 20px;
-            font-weight: bold;
-            margin: 0;
-        }
-        #comparisonChartContainer, .dashboard-chart-container {
-            margin-top: 30px;
-        }
-        .dashboard-chart-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            gap: 20px;
-            align-items: center;
-        }
-        textarea {
-            width: 100%;
-            height: 100px;
-            box-sizing: border-box;
-        }
-        .import-button {
-            margin-top: 10px;
-            width: 100%;
-        }
-        .note-form {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        #newNoteInput {
-            flex-grow: 1;
-        }
-        #notesList {
-            list-style: none;
-            padding: 0;
-        }
-        .note-item {
-            background-color: var(--secondary-color);
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            word-break: break-word;
-        }
+        .kasa-container { position: fixed; top: 20px; right: 20px; background-color: var(--secondary-color); padding: 15px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.5); text-align: center; z-index: 1000; }
+        .kasa-container h3 { margin: 0 0 10px 0; border: none; }
+        .kasa-value { font-size: 24px; font-weight: bold; }
+        .analiz-grid, .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .analiz-card, .dashboard-card { background-color: var(--secondary-color); padding: 20px; border-radius: 8px; text-align: center; }
+        .analiz-card h4, .dashboard-card h4 { margin: 0 0 10px 0; color: var(--accent-color); }
+        .analiz-card p, .dashboard-card p { font-size: 20px; font-weight: bold; margin: 0; }
+        #comparisonChartContainer, .dashboard-chart-container { margin-top: 30px; }
+        .dashboard-chart-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: center; }
+        textarea { width: 100%; height: 100px; box-sizing: border-box; }
+        .import-button { margin-top: 10px; width: 100%; }
+        .note-form { display: flex; gap: 10px; margin-bottom: 20px; }
+        #newNoteInput { flex-grow: 1; }
+        #notesList { list-style: none; padding: 0; }
+        .note-item { background-color: var(--secondary-color); padding: 15px; border-radius: 5px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: flex-start; word-break: break-word; }
         .note-content { flex-grow: 1; }
         .note-date { font-size: 12px; color: #bdc3c7; margin-bottom: 5px; }
         .note-text { white-space: pre-wrap; }
         .note-delete-btn { background-color: var(--loss-color); color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 15px; flex-shrink: 0; }
-
+        .chart-options { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 10px; }
         @media (max-width: 900px) {
             .dashboard-chart-grid { grid-template-columns: 1fr; }
             .kasa-container { display: none; }
@@ -231,9 +146,8 @@
 
     <div class="container">
         <h1>Hisse Senedi Alım Satım Günlüğü (Bulut)</h1>
-
         <div class="tabs">
-            <button class="tab-link active" onclick="openTab(event, 'dashboard')">Dashboard</button>
+             <button class="tab-link active" onclick="openTab(event, 'dashboard')">Dashboard</button>
             <button class="tab-link" onclick="openTab(event, 'islemListesi')">İşlem Listesi</button>
             <button class="tab-link" onclick="openTab(event, 'analiz')">Analiz</button>
             <button class="tab-link" onclick="openTab(event, 'karsilastirma')">Karşılaştırma</button>
@@ -246,8 +160,16 @@
             <div class="dashboard-chart-container">
                 <h3>Görsel Analiz</h3>
                 <div class="dashboard-chart-grid">
-                    <div class="chart-wrapper"><canvas id="kasaGrowthChart"></canvas></div>
-                    <div class="chart-wrapper"><canvas id="winRateChart"></canvas></div>
+                    <div class="chart-wrapper">
+                        <canvas id="kasaGrowthChart"></canvas>
+                        <div class="chart-options">
+                            <label><input type="radio" name="kasaCurrency" value="TRY" checked> TRY</label>
+                            <label><input type="radio" name="kasaCurrency" value="USD"> USD</label>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="winRateChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -351,7 +273,7 @@
         let notes = [];
         let kasa = { initial: 0, additions: 0, current: 0 };
         let comparisonChartInstance, kasaChartInstance, winRateChartInstance;
-        let editingTransactionId = null; // YENİ: Düzenleme modu için
+        let editingTransactionId = null;
 
         // TABS
         function openTab(evt, tabName) {
@@ -362,11 +284,8 @@
             for (i = 0; i < tablinks.length; i++) tablinks[i].className = tablinks[i].className.replace(" active", "");
             document.getElementById(tabName).style.display = "block";
             evt.currentTarget.className += " active";
-
-            if (tabName === 'islemListesi') {
-                if (!editingTransactionId) { // Sadece düzenleme modunda değilse tarihi ayarla
-                    document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
-                }
+            if (tabName === 'islemListesi' && !editingTransactionId) {
+                document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
             }
         }
 
@@ -398,12 +317,11 @@
             additionInput.value = '';
         }
 
-        // TEKİL İŞLEM YÖNETİMİ (GÜNCELLENDİ)
+        // TEKİL İŞLEM YÖNETİMİ
         document.getElementById('transactionForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const submitButton = document.getElementById('submitButton');
             submitButton.disabled = true;
-
             const transactionData = {
                 code: document.getElementById('code').value.toUpperCase(),
                 positionSize: parseFloat(document.getElementById('positionSize').value) || 0,
@@ -415,26 +333,19 @@
                 exitPrice: parseFloat(document.getElementById('exitPrice').value) || 0,
             };
             calculateTransactionDetails(transactionData);
-
             if (editingTransactionId) {
-                // Güncelleme mantığı
                 await db.collection("transactions").doc(editingTransactionId).update(transactionData);
             } else {
-                // Ekleme mantığı
                 await db.collection("transactions").add(transactionData);
             }
-            
             resetForm();
             submitButton.disabled = false;
         });
 
-        // YENİ: DÜZENLEME FONKSİYONU
         function editTransaction(id) {
             const transaction = transactions.find(t => t.id === id);
             if (!transaction) return;
-
             editingTransactionId = id;
-
             document.getElementById('code').value = transaction.code;
             document.getElementById('positionSize').value = transaction.positionSize;
             document.getElementById('entryDate').value = transaction.entryDate;
@@ -443,28 +354,21 @@
             document.getElementById('exitDate').value = transaction.exitDate;
             document.getElementById('exitLot').value = transaction.exitLot;
             document.getElementById('exitPrice').value = transaction.exitPrice;
-
-            // Eğer pozisyon açıksa, çıkış tarihini bugüne ayarla
             if (!transaction.exitDate) {
                 document.getElementById('exitDate').value = new Date().toISOString().split('T')[0];
             }
-            
             document.getElementById('formHeader').textContent = "İşlemi Düzenle / Kapat";
             document.getElementById('submitButton').textContent = "İşlemi Güncelle";
             document.getElementById('cancelButton').style.display = 'inline-block';
-
-            // Forma git
             document.getElementById('transactionForm').scrollIntoView({ behavior: 'smooth' });
         }
         
-        // YENİ: FORM RESETLEME FONKSİYONU
         function resetForm() {
             editingTransactionId = null;
             document.getElementById('transactionForm').reset();
             document.getElementById('formHeader').textContent = "Tekil İşlem Girişi";
             document.getElementById('submitButton').textContent = "İşlemi Kaydet";
             document.getElementById('cancelButton').style.display = 'none';
-            // Yeni işlem için giriş tarihini bugüne ayarla
             document.getElementById('entryDate').value = new Date().toISOString().split('T')[0];
         }
         
@@ -474,7 +378,7 @@
             }
         }
         
-        // ... (processBulkData, notlar ve diğer tüm fonksiyonlar önceki ile aynı kalacak) ...
+        // TOPLU İŞLEM YÖNETİMİ
         async function processBulkData() {
             const rawData = document.getElementById('bulkData').value;
             const lines = rawData.split('\n').filter(line => line.trim() !== '');
@@ -534,6 +438,8 @@
                 alert("Yapıştırılan verilerde eşleşen (alış-satış) kapalı pozisyon bulunamadı.");
             }
         }
+        
+        // NOT DEFTERİ YÖNETİMİ
         document.getElementById('noteForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const noteInput = document.getElementById('newNoteInput');
@@ -564,6 +470,8 @@
                 notesList.appendChild(li);
             });
         }
+
+        // HESAPLAMA VE GÖRÜNTÜLEME FONKSİYONLARI
         function calculatePositionSize() {
             const lot = parseFloat(document.getElementById('entryLot').value);
             const price = parseFloat(document.getElementById('entryPrice').value);
@@ -627,7 +535,7 @@
                     <td class="${pnlClass}">${t.pnlTL !== null ? t.pnlTL.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'}) : '-'}</td>
                     <td class="${pnlClass}">${t.kasaEtkisi !== null ? t.kasaEtkisi.toFixed(2) + '%' : '-'}</td>
                     <td class="button-group">
-                        <button class="edit-btn" onclick="editTransaction('${t.id}')">Düzenle / Kapat</button>
+                        <button class="edit-btn" onclick="editTransaction('${t.id}')">Düzenle</button>
                         <button class="delete-btn" onclick="deleteTransaction('${t.id}')">Sil</button>
                     </td>`;
             });
@@ -660,14 +568,33 @@
             renderDashboardCharts(closed);
         }
         function renderDashboardCharts(closedTrades) {
+            const historicalUsdTryRates = { "2025-01": 35.00, "2025-02": 35.50, "2025-03": 36.00, "2025-04": 36.50, "2025-05": 37.00, "2025-06": 37.50, "2025-07": 38.00, "2025-08": 38.25, "2025-09": 38.65 };
+            const getRateForDate = (dateStr) => {
+                const monthStr = dateStr.substring(0, 7);
+                return historicalUsdTryRates[monthStr] || 38.65; // Eşleşme yoksa en güncel kuru kullan
+            };
+
             if (kasaChartInstance) kasaChartInstance.destroy();
             const kasaCtx = document.getElementById('kasaGrowthChart').getContext('2d');
             const sortedTrades = closedTrades.slice().sort((a,b) => new Date(a.exitDate) - new Date(b.exitDate));
             const labels = ['Başlangıç'];
-            const data = [(kasa.initial || 0) + (kasa.additions || 0)];
-            let currentKasa = (kasa.initial || 0) + (kasa.additions || 0);
-            sortedTrades.forEach(t => { currentKasa += t.pnlTL; labels.push(t.exitDate); data.push(currentKasa); });
-            kasaChartInstance = new Chart(kasaCtx, { type: 'line', data: { labels, datasets: [{ label: 'Kasa Büyümesi (TL)', data, borderColor: 'rgba(26, 188, 156, 1)', backgroundColor: 'rgba(26, 188, 156, 0.1)', fill: true, tension: 0.1 }] }, options: { responsive: true, plugins: { legend: { labels: { color: 'white' } }, title: { display: true, text: 'Kasa Değerinin Zamana Göre Değişimi', color: 'white' } }, scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white' } } } } });
+            const dataTRY = [(kasa.initial || 0) + (kasa.additions || 0)];
+            let currentKasaTRY = (kasa.initial || 0) + (kasa.additions || 0);
+            sortedTrades.forEach(t => {
+                currentKasaTRY += t.pnlTL;
+                labels.push(t.exitDate);
+                dataTRY.push(currentKasaTRY);
+            });
+            
+            const showInUSD = document.querySelector('input[name="kasaCurrency"]:checked').value === 'USD';
+            const chartData = showInUSD ? dataTRY.map((val, i) => val / getRateForDate(labels[i] || new Date().toISOString())) : dataTRY;
+            const chartLabel = showInUSD ? 'Kasa Büyümesi (USD)' : 'Kasa Büyümesi (TL)';
+            const currencySymbol = showInUSD ? '$' : '₺';
+
+            kasaChartInstance = new Chart(kasaCtx, { type: 'line', data: { labels, datasets: [{ label: chartLabel, data: chartData, borderColor: 'rgba(26, 188, 156, 1)', backgroundColor: 'rgba(26, 188, 156, 0.1)', fill: true, tension: 0.1 }] }, 
+                options: { responsive: true, plugins: { legend: { labels: { color: 'white' } }, title: { display: true, text: 'Kasa Değerinin Zamana Göre Değişimi', color: 'white' }, tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.parsed.y.toLocaleString('tr-TR', {style:'currency', currency: showInUSD ? 'USD' : 'TRY'})}` } } }, 
+                scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white', callback: value => `${currencySymbol}${value.toLocaleString('tr-TR')}` } } } } });
+
             if (winRateChartInstance) winRateChartInstance.destroy();
             const winRateCtx = document.getElementById('winRateChart').getContext('2d');
             const wins = closedTrades.filter(t => t.pnlTL > 0).length;
@@ -745,11 +672,7 @@
                 }
             });
             if (comparisonChartInstance) comparisonChartInstance.destroy();
-            comparisonChartInstance = new Chart(ctx, {
-                type: 'bar', data: { labels, datasets: [{ label: 'Reel Getiri (%)', data, backgroundColor: bgColors }] },
-                options: { indexAxis: 'y', scales: { x: { ticks: { color: 'white', callback: value => value + '%' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }, y: { ticks: { color: 'white' }, grid: { display: false } } }, 
-                plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return `Reel Getiri: ${context.parsed.x.toFixed(2)}%`; } } } } }
-            });
+            comparisonChartInstance = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Reel Getiri (%)', data, backgroundColor: bgColors }] }, options: { indexAxis: 'y', scales: { x: { ticks: { color: 'white', callback: value => value + '%' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }, y: { ticks: { color: 'white' }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return `Reel Getiri: ${context.parsed.x.toFixed(2)}%`; } } } } } });
         }
         function filterTradesByPeriod(trades, period) {
             const now = new Date();
@@ -775,6 +698,9 @@
             document.querySelector('.tab-link[onclick*="dashboard"]').click();
             document.getElementById('entryLot').addEventListener('input', calculatePositionSize);
             document.getElementById('entryPrice').addEventListener('input', calculatePositionSize);
+            document.querySelectorAll('input[name="kasaCurrency"]').forEach(radio => {
+                radio.addEventListener('change', () => renderDashboardCharts(transactions.filter(t => t.pnlTL !== null)));
+            });
         });
 
     </script>
