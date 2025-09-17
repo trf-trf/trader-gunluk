@@ -266,7 +266,7 @@
             <h2>Reel Getiri Karşılaştırması (Enflasyondan Arındırılmış)</h2>
             <div class="form-group">
                 <label for="comparisonPeriod">Karşılaştırma Periyodu:</label>
-                <select id="comparisonPeriod" onchange="renderComparisonChart()">
+                <select id="comparisonPeriod">
                     <option value="1y">Son 1 Yıl</option><option value="ytd">Yıl Başından Beri</option><option value="6m">Son 6 Ay</option>
                     <option value="3m">Son 3 Ay</option><option value="1m">Son 30 Gün</option><option value="1w">Son 7 Gün</option>
                 </select>
@@ -542,12 +542,17 @@
                 const entryD = new Date(t.entryDate);
                 const exitD = new Date(t.exitDate);
                 t.holdingPeriod = Math.round((exitD - entryD) / (1000 * 60 * 60 * 24));
-                calculateCurrentKasa();
-                const kasaBeforePnl = kasa.current - pnlTL;
-                t.kasaEtkisi = (kasaBeforePnl > 0) ? (pnlTL / kasaBeforePnl) * 100 : 0;
                 t.pnlTL = pnlTL;
             } else {
-                t.pnlTL = null; t.pnlPerc = null; t.holdingPeriod = null; t.kasaEtkisi = null;
+                t.pnlTL = null; t.pnlPerc = null; t.holdingPeriod = null;
+            }
+            // Kasa Etkisi her zaman hesaplanabilir (sadece kapalı pozisyonlar için)
+            if (t.pnlTL !== null) {
+                calculateCurrentKasa();
+                const kasaBeforePnl = kasa.current - t.pnlTL;
+                t.kasaEtkisi = (kasaBeforePnl > 0) ? (t.pnlTL / kasaBeforePnl) * 100 : 0;
+            } else {
+                 t.kasaEtkisi = null;
             }
         }
         function calculateCurrentKasa() {
@@ -780,7 +785,12 @@
             ['entryLot', 'entryPrice', 'exitLot', 'exitPrice'].forEach(id => document.getElementById(id).addEventListener('input', autoCalculateFee));
             document.getElementById('entryLot').addEventListener('input', calculatePositionSize);
             document.getElementById('entryPrice').addEventListener('input', calculatePositionSize);
-            document.querySelectorAll('input[name="kasaCurrency"]').forEach(radio => radio.addEventListener('change', () => renderDashboardCharts(allTransactions.filter(t => t.pnlTL !== null))));
+            document.querySelectorAll('input[name="kasaCurrency"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
+                    renderDashboardCharts(closedPositions);
+                });
+            });
             document.getElementById('noteForm').addEventListener('submit', async function(e){
                 e.preventDefault();
                 const noteInput = document.getElementById('newNoteInput');
@@ -790,7 +800,16 @@
                 await db.collection("notes").add(newNote);
                 noteInput.value = '';
             });
+            document.getElementById('comparisonPeriod').addEventListener('change', () => {
+                const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
+                renderComparisonChart(closedPositions);
+            });
+            document.getElementById('analysisPeriod').addEventListener('change', () => {
+                const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
+                renderAnalysis(closedPositions);
+            });
         });
+
     </script>
 </body>
 </html>
