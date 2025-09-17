@@ -166,7 +166,24 @@
         </div>
 
         <div id="dashboard" class="tab-content active">
-             </div>
+            <h2>Performans Özeti</h2>
+            <div id="dashboardGrid" class="dashboard-grid"></div>
+            <div class="dashboard-chart-container">
+                <h3>Görsel Analiz</h3>
+                <div class="dashboard-chart-grid">
+                    <div class="chart-wrapper">
+                        <canvas id="kasaGrowthChart"></canvas>
+                        <div class="chart-options">
+                            <label><input type="radio" name="kasaCurrency" value="TRY" checked> TRY</label>
+                            <label><input type="radio" name="kasaCurrency" value="USD"> USD</label>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="winRateChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
         
         <div id="islemListesi" class="tab-content">
             <h2>Açık Pozisyonlar</h2>
@@ -176,20 +193,6 @@
                     <tr>
                         <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Maliyet (TL)</th>
                         <th>Gün</th><th>Anlık Fiyat</th><th>Güncel K/Z (TL)</th><th>Güncel K/Z (%)</th><th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-            
-            <hr class="solid">
-            
-            <h2>Kapalı Pozisyonlar (İşlem Geçmişi)</h2>
-            <table id="closedPositionsTable">
-                <thead>
-                    <tr>
-                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
-                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th>
-                        <th>Fee (TL)</th><th>PnL (%)</th><th>Net PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlemler</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -231,16 +234,55 @@
                     <button type="button" class="import-button" onclick="processBulkData()">İşlemleri Aktar</button>
                 </div>
             </div>
+
+            <hr class="solid">
+
+            <h2>Kapalı Pozisyonlar (İşlem Geçmişi)</h2>
+            <table id="closedPositionsTable">
+                <thead>
+                    <tr>
+                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
+                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th>
+                        <th>Fee (TL)</th><th>PnL (%)</th><th>Net PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
 
         <div id="analiz" class="tab-content">
+            <h2>Performans Analizi</h2>
+            <div class="form-group">
+                <label for="analysisPeriod">Analiz Periyodu:</label>
+                <select id="analysisPeriod" onchange="renderAnalysis()">
+                    <option value="all">Tümü</option><option value="ytd">Yıl Başından Beri</option><option value="quarter">Son Çeyrek</option>
+                    <option value="month">Son 30 Gün</option><option value="week">Son 7 Gün</option>
+                </select>
             </div>
+            <div id="analysisResults" class="analiz-grid"></div>
+        </div>
 
         <div id="karsilastirma" class="tab-content">
-             </div>
+            <h2>Reel Getiri Karşılaştırması (Enflasyondan Arındırılmış)</h2>
+            <div class="form-group">
+                <label for="comparisonPeriod">Karşılaştırma Periyodu:</label>
+                <select id="comparisonPeriod" onchange="renderComparisonChart()">
+                    <option value="1y">Son 1 Yıl</option><option value="ytd">Yıl Başından Beri</option><option value="6m">Son 6 Ay</option>
+                    <option value="3m">Son 3 Ay</option><option value="1m">Son 30 Gün</option><option value="1w">Son 7 Gün</option>
+                </select>
+            </div>
+            <div id="comparisonChartContainer"><canvas id="comparisonChart"></canvas></div>
+        </div>
 
         <div id="notlar" class="tab-content">
-             </div>
+             <h2>Not Defteri</h2>
+            <form id="noteForm" class="note-form">
+                <textarea id="newNoteInput" placeholder="Yeni bir not yazın..." required></textarea>
+                <button type="submit">Not Ekle</button>
+            </form>
+            <h3>Kaydedilmiş Notlar</h3>
+            <ul id="notesList"></ul>
+        </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
@@ -442,22 +484,9 @@
         }
         
         // NOT DEFTERİ YÖNETİMİ
-        document.getElementById('noteForm').addEventListener('submit', async function(e) {
-            e.preventDefault();
-            const noteInput = document.getElementById('newNoteInput');
-            const noteText = noteInput.value.trim();
-            if (noteText === '') return;
-            const newNote = { text: noteText, createdAt: new Date() };
-            await db.collection("notes").add(newNote);
-            noteInput.value = '';
-        });
-        async function deleteNote(id) {
-            if (confirm('Bu notu silmek istediğinizden emin misiniz?')) {
-                await db.collection("notes").doc(id).delete();
-            }
-        }
         function renderNotes() {
             const notesList = document.getElementById('notesList');
+            if(!notesList) return;
             notesList.innerHTML = '';
             notes.forEach(note => {
                 const li = document.createElement('li');
@@ -540,7 +569,7 @@
             renderComparisonChart(closedPositions);
         }
         function renderTables() {
-            const openPositions = allTransactions.filter(t => !t.exitDate || t.exitLot === 0);
+            const openPositions = allTransactions.filter(t => !t.exitDate || !t.exitLot || t.exitLot === 0);
             const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
             renderOpenPositionsTable(openPositions);
             renderClosedPositionsTable(closedPositions);
@@ -746,36 +775,22 @@
         }
         
         document.addEventListener('DOMContentLoaded', () => {
-            const islemListesiTab = document.getElementById('islemListesi');
-            islemListesiTab.innerHTML = `<h2>Açık Pozisyonlar</h2><p>Anlık fiyat girerek güncel kar/zarar durumunuzu görün.</p><table id="openPositionsTable"><thead><tr><th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Maliyet (TL)</th><th>Gün</th><th>Anlık Fiyat</th><th>Güncel K/Z (TL)</th><th>Güncel K/Z (%)</th><th>İşlemler</th></tr></thead><tbody></tbody></table><hr class="solid"><h2>Kapalı Pozisyonlar (İşlem Geçmişi)</h2><table id="closedPositionsTable"><thead><tr><th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th><th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th><th>Fee (TL)</th><th>PnL (%)</th><th>Net PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlemler</th></tr></thead><tbody></tbody></table><hr class="solid"><h2>İşlem Girişi ve Kasa Yönetimi</h2><div id="entry-and-cash-management"><h3 id="formHeader">Tekil İşlem Girişi</h3><form id="transactionForm"><div class="form-grid"><div class="form-group"><label for="code">Hisse Kodu:</label><input type="text" id="code" required></div><div class="form-group"><label for="positionSize">Position Size (% Kasa):</label><input type="number" id="positionSize" step="0.1" readonly></div><div class="form-group"><label for="entryDate">Giriş Tarihi:</label><input type="date" id="entryDate" required></div><div class="form-group"><label for="entryLot">Giriş Lot:</label><input type="number" id="entryLot" required></div><div class="form-group"><label for="entryPrice">Giriş Fiyatı:</label><input type="number" id="entryPrice" step="0.01" required></div><div class="form-group"><label for="entryFee">Giriş Fee (TL):</label><input type="number" id="entryFee" step="0.01" readonly></div><div class="form-group"><label for="exitDate">Çıkış Tarihi:</label><input type="date" id="exitDate"></div><div class="form-group"><label for="exitLot">Çıkış Lot:</label><input type="number" id="exitLot"></div><div class="form-group"><label for="exitPrice">Çıkış Fiyatı:</label><input type="number" id="exitPrice" step="0.01"></div><div class="form-group"><label for="exitFee">Çıkış Fee (TL):</label><input type="number" id="exitFee" step="0.01" readonly></div></div><button type="submit" id="submitButton">İşlemi Kaydet</button><button type="button" onclick="resetForm()" style="display: none; background-color: #7f8c8d; color: white;" id="cancelButton">İptal</button></form><h3>Kasa Yönetimi</h3><div class="kasa-grid"><div class="kasa-group"><label for="initialKasa">Başlangıç Kasası:</label><input type="number" id="initialKasa" placeholder="0.00"></div><div class="kasa-group"><label for="kasaAddition">Kasaya Ekle/Çıkar (+/-):</label><input type="number" id="kasaAddition" placeholder="Örn: 5000 veya -1000"></div><div class="kasa-group" style="align-self: flex-end;"><button type="button" onclick="updateKasa()">Kasayı Güncelle</button></div></div><h3>Toplu İşlem Girişi</h3><div class="form-group"><label for="bulkData">Aracı kurum verilerini (başlık satırı dahil) buraya yapıştırın:</label><textarea id="bulkData" placeholder="Tarih	Hisse	Alış/Satış	Fiyat	Adet	Tutar	Fee" style="height: 150px; white-space: pre; overflow-wrap: normal; overflow-x: scroll;"></textarea><button type="button" class="import-button" onclick="processBulkData()">İşlemleri Aktar</button></div></div>`;
-            const dashboardTab = document.getElementById('dashboard');
-            dashboardTab.innerHTML = `<h2>Performans Özeti</h2><div id="dashboardGrid" class="dashboard-grid"></div><div class="dashboard-chart-container"><h3>Görsel Analiz</h3><div class="dashboard-chart-grid"><div class="chart-wrapper"><canvas id="kasaGrowthChart"></canvas><div class="chart-options"><label><input type="radio" name="kasaCurrency" value="TRY" checked> TRY</label><label><input type="radio" name="kasaCurrency" value="USD"> USD</label></div></div><div class="chart-wrapper"><canvas id="winRateChart"></canvas></div></div></div>`;
-            const analizTab = document.getElementById('analiz');
-            analizTab.innerHTML = `<h2>Performans Analizi</h2><div class="form-group"><label for="analysisPeriod">Analiz Periyodu:</label><select id="analysisPeriod" onchange="renderAnalysis()"><option value="all">Tümü</option><option value="ytd">Yıl Başından Beri</option><option value="quarter">Son Çeyrek</option><option value="month">Son 30 Gün</option><option value="week">Son 7 Gün</option></select></div><div id="analysisResults" class="analiz-grid"></div>`;
-            const karsilastirmaTab = document.getElementById('karsilastirma');
-            karsilastirmaTab.innerHTML = `<h2>Reel Getiri Karşılaştırması (Enflasyondan Arındırılmış)</h2><div class="form-group"><label for="comparisonPeriod">Karşılaştırma Periyodu:</label><select id="comparisonPeriod" onchange="renderComparisonChart()"><option value="1y">Son 1 Yıl</option><option value="ytd">Yıl Başından Beri</option><option value="6m">Son 6 Ay</option><option value="3m">Son 3 Ay</option><option value="1m">Son 30 Gün</option><option value="1w">Son 7 Gün</option></select></div><div id="comparisonChartContainer"><canvas id="comparisonChart"></canvas></div>`;
-            const notlarTab = document.getElementById('notlar');
-            notlarTab.innerHTML = `<h2>Not Defteri</h2><form id="noteForm" class="note-form"><textarea id="newNoteInput" placeholder="Yeni bir not yazın..." required></textarea><button type="submit">Not Ekle</button></form><h3>Kaydedilmiş Notlar</h3><ul id="notesList"></ul>`;
-
             loadRealtimeData();
             document.querySelector('.tab-link[onclick*="dashboard"]').click();
             ['entryLot', 'entryPrice', 'exitLot', 'exitPrice'].forEach(id => document.getElementById(id).addEventListener('input', autoCalculateFee));
             document.getElementById('entryLot').addEventListener('input', calculatePositionSize);
             document.getElementById('entryPrice').addEventListener('input', calculatePositionSize);
             document.querySelectorAll('input[name="kasaCurrency"]').forEach(radio => radio.addEventListener('change', () => renderDashboardCharts(allTransactions.filter(t => t.pnlTL !== null))));
-            document.getElementById('noteForm').addEventListener('submit', async function(e){ /* ... */ }); // Re-bind note form
-             document.getElementById('transactionForm').addEventListener('submit', async function(e) {
+            document.getElementById('noteForm').addEventListener('submit', async function(e){
                 e.preventDefault();
-                const submitButton = document.getElementById('submitButton');
-                submitButton.disabled = true;
-                const transactionData = { code: document.getElementById('code').value.toUpperCase(), positionSize: parseFloat(document.getElementById('positionSize').value) || 0, entryDate: document.getElementById('entryDate').value, entryLot: parseInt(document.getElementById('entryLot').value), entryPrice: parseFloat(document.getElementById('entryPrice').value), exitDate: document.getElementById('exitDate').value, exitLot: parseInt(document.getElementById('exitLot').value) || 0, exitPrice: parseFloat(document.getElementById('exitPrice').value) || 0, };
-                calculateTransactionDetails(transactionData);
-                if (editingTransactionId) { await db.collection("transactions").doc(editingTransactionId).update(transactionData); } else { await db.collection("transactions").add(transactionData); }
-                resetForm();
-                submitButton.disabled = false;
+                const noteInput = document.getElementById('newNoteInput');
+                const noteText = noteInput.value.trim();
+                if (noteText === '') return;
+                const newNote = { text: noteText, createdAt: new Date() };
+                await db.collection("notes").add(newNote);
+                noteInput.value = '';
             });
         });
-
     </script>
 </body>
 </html>
