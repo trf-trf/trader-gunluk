@@ -62,6 +62,11 @@
             border-bottom: 1px solid var(--border-color);
             padding-bottom: 10px;
         }
+        .header-with-button {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
         .form-grid {
              display: grid;
             grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -237,7 +242,10 @@
 
             <hr class="solid">
 
-            <h2>Kapalı Pozisyonlar (İşlem Geçmişi)</h2>
+            <div class="header-with-button">
+                <h2>Kapalı Pozisyonlar (İşlem Geçmişi)</h2>
+                <button id="deleteAllClosedButton" class="delete-btn" style="padding: 5px 10px; font-size: 12px;">Tümünü Sil</button>
+            </div>
             <table id="closedPositionsTable">
                 <thead>
                     <tr>
@@ -254,7 +262,7 @@
             <h2>Performans Analizi</h2>
             <div class="form-group">
                 <label for="analysisPeriod">Analiz Periyodu:</label>
-                <select id="analysisPeriod" onchange="renderAnalysis()">
+                <select id="analysisPeriod">
                     <option value="all">Tümü</option><option value="ytd">Yıl Başından Beri</option><option value="quarter">Son Çeyrek</option>
                     <option value="month">Son 30 Gün</option><option value="week">Son 7 Gün</option>
                 </select>
@@ -546,11 +554,10 @@
             } else {
                 t.pnlTL = null; t.pnlPerc = null; t.holdingPeriod = null;
             }
-            // Kasa Etkisi her zaman hesaplanabilir (sadece kapalı pozisyonlar için)
             if (t.pnlTL !== null) {
                 calculateCurrentKasa();
                 const kasaBeforePnl = kasa.current - t.pnlTL;
-                t.kasaEtkisi = (kasaBeforePnl > 0) ? (t.pnlTL / kasaBeforePnl) * 100 : 0;
+                t.kasaEtkisi = (kasaBeforePnl > 0) ? (pnlTL / kasaBeforePnl) * 100 : 0;
             } else {
                  t.kasaEtkisi = null;
             }
@@ -561,7 +568,6 @@
             kasa.current = (kasa.initial || 0) + (kasa.additions || 0) + totalPnl;
         }
         function updateKasaDisplay() {
-            calculateCurrentKasa();
             document.getElementById('kasaValue').textContent = kasa.current.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' });
         }
         function renderAll() {
@@ -779,6 +785,24 @@
             });
         }
         
+        async function deleteAllClosedPositions() {
+            if (!confirm('Tüm kapalı pozisyon geçmişini kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!')) {
+                return;
+            }
+            const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
+            if(closedPositions.length === 0) {
+                alert("Silinecek kapalı pozisyon bulunmuyor.");
+                return;
+            }
+            const batch = db.batch();
+            closedPositions.forEach(pos => {
+                const docRef = db.collection("transactions").doc(pos.id);
+                batch.delete(docRef);
+            });
+            await batch.commit();
+            alert('Tüm kapalı pozisyonlar başarıyla silindi.');
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             loadRealtimeData();
             document.querySelector('.tab-link[onclick*="dashboard"]').click();
@@ -808,6 +832,7 @@
                 const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
                 renderAnalysis(closedPositions);
             });
+            document.getElementById('deleteAllClosedButton').addEventListener('click', deleteAllClosedPositions);
         });
 
     </script>
