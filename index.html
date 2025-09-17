@@ -816,9 +816,18 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadRealtimeData();
             document.querySelector('.tab-link[onclick*="dashboard"]').click();
+            
             // Event Listeners
             document.getElementById('transactionForm').addEventListener('submit', handleTransactionFormSubmit);
-            document.getElementById('noteForm').addEventListener('submit', handleNoteFormSubmit);
+            document.getElementById('noteForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                const noteInput = document.getElementById('newNoteInput');
+                const noteText = noteInput.value.trim();
+                if (noteText === '') return;
+                const newNote = { text: noteText, createdAt: new Date() };
+                await db.collection("notes").add(newNote);
+                noteInput.value = '';
+            });
             document.getElementById('deleteAllClosedButton').addEventListener('click', deleteAllClosedPositions);
             ['entryLot', 'entryPrice', 'exitLot', 'exitPrice'].forEach(id => document.getElementById(id).addEventListener('input', autoCalculateFee));
             document.getElementById('entryLot').addEventListener('input', calculatePositionSize);
