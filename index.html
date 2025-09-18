@@ -365,24 +365,65 @@
             e.preventDefault();
             const submitButton = document.getElementById('submitButton');
             submitButton.disabled = true;
-            const transactionData = {
-                code: document.getElementById('code').value.toUpperCase(),
-                positionSize: parseFloat(document.getElementById('positionSize').value) || 0,
-                entryDate: document.getElementById('entryDate').value,
-                entryLot: parseInt(document.getElementById('entryLot').value),
-                entryPrice: parseFloat(document.getElementById('entryPrice').value),
-                exitDate: document.getElementById('exitDate').value,
-                exitLot: parseInt(document.getElementById('exitLot').value) || 0,
-                exitPrice: parseFloat(document.getElementById('exitPrice').value) || 0,
-            };
-            calculateTransactionDetails(transactionData);
-            if (editingTransactionId) {
-                await db.collection("transactions").doc(editingTransactionId).update(transactionData);
+
+            const originalTransaction = editingTransactionId ? allTransactions.find(t => t.id === editingTransactionId) : null;
+            const entryLot = parseInt(document.getElementById('entryLot').value);
+            const exitLot = parseInt(document.getElementById('exitLot').value) || 0;
+
+            // Kısmi satış kontrolü
+            if (editingTransactionId && exitLot > 0 && exitLot < originalTransaction.entryLot) {
+                // Pozisyonu böl
+                await splitPosition(originalTransaction, exitLot);
             } else {
-                await db.collection("transactions").add(transactionData);
+                // Normal ekleme veya tam güncelleme
+                const transactionData = {
+                    code: document.getElementById('code').value.toUpperCase(),
+                    positionSize: parseFloat(document.getElementById('positionSize').value) || 0,
+                    entryDate: document.getElementById('entryDate').value,
+                    entryLot: entryLot,
+                    entryPrice: parseFloat(document.getElementById('entryPrice').value),
+                    exitDate: document.getElementById('exitDate').value,
+                    exitLot: exitLot,
+                    exitPrice: parseFloat(document.getElementById('exitPrice').value) || 0,
+                };
+                calculateTransactionDetails(transactionData);
+                if (editingTransactionId) {
+                    await db.collection("transactions").doc(editingTransactionId).update(transactionData);
+                } else {
+                    await db.collection("transactions").add(transactionData);
+                }
             }
+
             resetForm();
             submitButton.disabled = false;
+        }
+
+        async function splitPosition(originalTransaction, exitLot) {
+            // 1. Kapanan kısım için yeni bir kapalı pozisyon oluştur
+            const closedPortion = { ...originalTransaction };
+            closedPortion.exitLot = exitLot;
+            closedPortion.exitPrice = parseFloat(document.getElementById('exitPrice').value) || 0;
+            closedPortion.exitDate = document.getElementById('exitDate').value;
+            calculateTransactionDetails(closedPortion); // PNL, fee vs. hesapla
+            
+            // 2. Açık kalan kısım için orijinal pozisyonu güncelle
+            const remainingLot = originalTransaction.entryLot - exitLot;
+            const updatedOpenPortion = {
+                ...originalTransaction,
+                entryLot: remainingLot,
+                 // Kalan lot için pozisyon büyüklüğünü yeniden hesapla
+                positionSize: (remainingLot * originalTransaction.entryPrice / kasa.current) * 100
+            };
+            calculateTransactionDetails(updatedOpenPortion);
+
+            // Veritabanı işlemlerini batch ile yap
+            const batch = db.batch();
+            const newClosedRef = db.collection("transactions").doc(); // Yeni kapalı pozisyon için yeni ID
+            batch.set(newClosedRef, closedPortion);
+            const originalRef = db.collection("transactions").doc(originalTransaction.id);
+            batch.update(originalRef, updatedOpenPortion); // Orijinal kaydı kalan lot ile güncelle
+
+            await batch.commit();
         }
 
         function editTransaction(id) {
@@ -395,7 +436,7 @@
             document.getElementById('entryLot').value = transaction.entryLot;
             document.getElementById('entryPrice').value = transaction.entryPrice;
             document.getElementById('exitDate').value = transaction.exitDate;
-            document.getElementById('exitLot').value = transaction.exitLot;
+            document.getElementById('exitLot').value = transaction.exitLot; // Düzenleme için çıkış lotunu da doldur
             document.getElementById('exitPrice').value = transaction.exitPrice;
             if (!transaction.exitDate) {
                 document.getElementById('exitDate').value = new Date().toISOString().split('T')[0];
@@ -425,6 +466,8 @@
         // TOPLU İŞLEM YÖNETİMİ
         async function processBulkData() {
             const rawData = document.getElementById('bulkData').value;
+            if (!rawData) return alert("Lütfen veri yapıştırın.");
+
             const lines = rawData.split('\n').filter(line => line.trim() !== '');
             let rawOrders = [];
             for (let i = 1; i < lines.length; i++) {
@@ -437,7 +480,7 @@
                     const price = parseFloat(parts[3].replace(',', '.'));
                     const lot = parseInt(parts[4].replace(',', '.'));
                     const order = {
-                        date: formattedDate, code: parts[1], type: parts[2], price: price, lot: lot,
+                        date: formattedDate, code: parts[1].toUpperCase(), type: parts[2], price, lot,
                         fee: parts[6] ? parseFloat(parts[6].replace(',', '.')) : (price * lot * FEE_RATE)
                     };
                     if (!order.date || !order.code || !order.type || isNaN(order.price) || isNaN(order.lot) || order.lot === 0) continue;
@@ -445,53 +488,84 @@
                 } catch (error) { console.error("Satır işlenirken hata:", lines[i], error); }
             }
             if (rawOrders.length === 0) return alert("Veri formatı tanınamadı veya geçerli işlem bulunamadı.");
+            
             rawOrders.sort((a, b) => new Date(a.date) - new Date(b.date));
             const tradesByCode = {};
             rawOrders.forEach(o => {
                 if (!tradesByCode[o.code]) tradesByCode[o.code] = { buys: [], sells: [] };
-                o.type === 'Alış' ? tradesByCode[o.code].buys.push(o) : tradesByCode[o.code].sells.push(o);
+                o.type.toLowerCase().startsWith('al') ? tradesByCode[o.code].buys.push(o) : tradesByCode[o.code].sells.push(o);
             });
+            
             calculateCurrentKasa();
             const currentKasaForBulk = kasa.current;
-            let newTransactions = [];
+            let finalTransactions = [];
+
             for (const code in tradesByCode) {
                 const { buys, sells } = tradesByCode[code];
                 sells.forEach(sell => {
                     let sellLot = sell.lot;
+                    let sellFee = sell.fee;
                     while (sellLot > 0 && buys.length > 0) {
                         const buy = buys[0];
                         const matchedLot = Math.min(sellLot, buy.lot);
                         const entryValue = matchedLot * buy.price;
                         const posSize = (currentKasaForBulk > 0) ? (entryValue / currentKasaForBulk) * 100 : 0;
                         const buyFeePart = buy.fee * (matchedLot / buy.lot);
-                        newTransactions.push({
+                        const sellFeePart = sell.fee * (matchedLot / sell.lot);
+                        
+                        finalTransactions.push({
                             code: code, positionSize: posSize, entryDate: buy.date, entryLot: matchedLot, entryPrice: buy.price,
                             exitDate: sell.date, exitLot: matchedLot, exitPrice: sell.price,
-                            totalFee: buyFeePart + sell.fee
+                            totalFee: buyFeePart + sellFeePart
                         });
+                        
                         sellLot -= matchedLot;
+                        sellFee -= sellFeePart;
                         buy.lot -= matchedLot;
                         buy.fee -= buyFeePart;
+                        
                         if (buy.lot < 0.001) buys.shift();
                     }
                 });
+
+                // Kalan alışları açık pozisyon olarak ekle
+                buys.forEach(buy => {
+                    if(buy.lot > 0) {
+                        const entryValue = buy.lot * buy.price;
+                        const posSize = (currentKasaForBulk > 0) ? (entryValue / currentKasaForBulk) * 100 : 0;
+                        finalTransactions.push({
+                            code: code, positionSize: posSize, entryDate: buy.date, entryLot: buy.lot, entryPrice: buy.price,
+                            exitDate: '', exitLot: 0, exitPrice: 0
+                        });
+                    }
+                });
             }
-            if (newTransactions.length > 0) {
+
+            if (finalTransactions.length > 0) {
                 const batch = db.batch();
-                newTransactions.forEach(t => {
+                finalTransactions.forEach(t => {
                     calculateTransactionDetails(t);
                     const docRef = db.collection("transactions").doc();
                     batch.set(docRef, t);
                 });
                 await batch.commit();
-                alert(`${newTransactions.length} adet yeni kapalı pozisyon başarıyla eklendi!`);
+                alert(`${finalTransactions.length} adet işlem başarıyla eklendi! (Açık ve kapalı pozisyonlar dahil)`);
                 document.getElementById('bulkData').value = '';
             } else {
-                alert("Yapıştırılan verilerde eşleşen (alış-satış) kapalı pozisyon bulunamadı.");
+                alert("Yapıştırılan verilerde işlenecek işlem bulunamadı.");
             }
         }
         
         // NOT DEFTERİ YÖNETİMİ
+        async function handleNoteFormSubmit(e) {
+            e.preventDefault();
+            const noteInput = document.getElementById('newNoteInput');
+            const noteText = noteInput.value.trim();
+            if (noteText === '') return;
+            const newNote = { text: noteText, createdAt: new Date() };
+            await db.collection("notes").add(newNote);
+            noteInput.value = '';
+        }
         function renderNotes() {
             const notesList = document.getElementById('notesList');
             if(!notesList) return;
@@ -509,24 +583,11 @@
                 notesList.appendChild(li);
             });
         }
-        async function handleNoteFormSubmit(e) {
-            e.preventDefault();
-            const noteInput = document.getElementById('newNoteInput');
-            const noteText = noteInput.value.trim();
-            if (noteText === '') return;
-            const newNote = { text: noteText, createdAt: new Date() };
-            await db.collection("notes").add(newNote);
-            noteInput.value = '';
-        }
         async function deleteAllClosedPositions() {
-            if (!confirm('Tüm kapalı pozisyon geçmişini kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!')) {
-                return;
-            }
+            if (!confirm('Tüm kapalı pozisyon geçmişini kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!')) return;
             const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
-            if(closedPositions.length === 0) {
-                alert("Silinecek kapalı pozisyon bulunmuyor.");
-                return;
-            }
+            if(closedPositions.length === 0) return alert("Silinecek kapalı pozisyon bulunmuyor.");
+            
             const batch = db.batch();
             closedPositions.forEach(pos => {
                 const docRef = db.collection("transactions").doc(pos.id);
@@ -627,7 +688,7 @@
                     <td><input type="number" class="current-price-input" data-id="${t.id}" placeholder="Fiyat Gir"></td>
                     <td class="live-pnl-amount">-</td><td class="live-pnl-percent">-</td>
                     <td class="button-group">
-                        <button class="edit-btn" onclick="editTransaction('${t.id}')">Kapat</button>
+                        <button class="edit-btn" onclick="editTransaction('${t.id}')">Kapat/Düzenle</button>
                         <button class="delete-btn" onclick="deleteTransaction('${t.id}')">Sil</button>
                     </td>`;
             });
@@ -819,15 +880,7 @@
             
             // Event Listeners
             document.getElementById('transactionForm').addEventListener('submit', handleTransactionFormSubmit);
-            document.getElementById('noteForm').addEventListener('submit', async function(e) {
-                e.preventDefault();
-                const noteInput = document.getElementById('newNoteInput');
-                const noteText = noteInput.value.trim();
-                if (noteText === '') return;
-                const newNote = { text: noteText, createdAt: new Date() };
-                await db.collection("notes").add(newNote);
-                noteInput.value = '';
-            });
+            document.getElementById('noteForm').addEventListener('submit', handleNoteFormSubmit);
             document.getElementById('deleteAllClosedButton').addEventListener('click', deleteAllClosedPositions);
             ['entryLot', 'entryPrice', 'exitLot', 'exitPrice'].forEach(id => document.getElementById(id).addEventListener('input', autoCalculateFee));
             document.getElementById('entryLot').addEventListener('input', calculatePositionSize);
