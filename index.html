@@ -191,8 +191,11 @@
         </div>
         
         <div id="islemListesi" class="tab-content">
-            <h2>Açık Pozisyonlar</h2>
-            <p>Anlık fiyat girerek güncel kar/zarar durumunuzu görün.</p>
+            <div class="header-with-button">
+                <h2>Açık Pozisyonlar</h2>
+                <button id="updatePricesButton">Fiyatları Güncelle</button>
+            </div>
+            <p>Anlık fiyatları tek tuşla güncelleyerek kar/zarar durumunuzu görün.</p>
             <table id="openPositionsTable">
                 <thead>
                     <tr>
@@ -400,7 +403,7 @@
             closedPortion.exitLot = exitLot;
             closedPortion.exitPrice = parseFloat(document.getElementById('exitPrice').value) || 0;
             closedPortion.exitDate = document.getElementById('exitDate').value;
-            delete closedPortion.id; // Yeni bir doküman oluşturulacağı için ID'yi kaldır.
+            delete closedPortion.id;
             calculateTransactionDetails(closedPortion);
             
             const remainingLot = originalTransaction.entryLot - exitLot;
@@ -467,7 +470,7 @@
                 try {
                     const parts = lines[i].trim().split(/\s+/);
                     if (parts.length < 5) continue;
-                    const dateParts = parts[0].split('/');
+                    const dateParts = parts[0].split('.');
                     if (dateParts.length !== 3) continue;
                     const formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
                     const price = parseFloat(parts[3].replace(',', '.'));
@@ -482,16 +485,32 @@
             }
             if (rawOrders.length === 0) return alert("Veri formatı tanınamadı veya geçerli işlem bulunamadı.");
             
-            rawOrders.sort((a, b) => new Date(a.date) - new Date(b.date));
-            const tradesByCode = {};
-            rawOrders.forEach(o => {
-                if (!tradesByCode[o.code]) tradesByCode[o.code] = { buys: [], sells: [] };
-                o.type.toLowerCase().startsWith('al') ? tradesByCode[o.code].buys.push(o) : tradesByCode[o.code].sells.push(o);
-            });
+            // Mevcut açık pozisyonları da hesaba kat
+            const openPositions = allTransactions.filter(t => !t.exitDate || !t.exitLot || t.exitLot === 0);
+            const buysFromDB = openPositions.map(op => ({
+                id: op.id,
+                date: op.entryDate, code: op.code, type: 'Alış', price: op.entryPrice, lot: op.entryLot,
+                fee: op.entryLot * op.entryPrice * FEE_RATE // Yaklaşık fee
+            }));
+
+            const allBuys = [...buysFromDB, ...rawOrders.filter(o => o.type.toLowerCase().startsWith('al'))].sort((a,b) => new Date(a.date) - new Date(b.date));
+            const allSells = rawOrders.filter(o => !o.type.toLowerCase().startsWith('al')).sort((a,b) => new Date(a.date) - new Date(b.date));
             
+            const tradesByCode = {};
+            allBuys.forEach(b => {
+                if(!tradesByCode[b.code]) tradesByCode[b.code] = {buys:[], sells:[]};
+                tradesByCode[b.code].buys.push(b);
+            });
+             allSells.forEach(s => {
+                if(!tradesByCode[s.code]) tradesByCode[s.code] = {buys:[], sells:[]};
+                tradesByCode[s.code].sells.push(s);
+            });
+
             calculateCurrentKasa();
             const currentKasaForBulk = kasa.current;
-            let finalTransactions = [];
+            let closedTransactions = [];
+            let openTransactionsToUpdate = {};
+            let newOpenTransactions = [];
 
             for (const code in tradesByCode) {
                 const { buys, sells } = tradesByCode[code];
@@ -506,7 +525,7 @@
                         const buyFeePart = buy.fee * (matchedLot / buy.lot);
                         const sellFeePart = sell.fee * (matchedLot / sell.lot);
                         
-                        finalTransactions.push({
+                        closedTransactions.push({
                             code: code, positionSize: posSize, entryDate: buy.date, entryLot: matchedLot, entryPrice: buy.price,
                             exitDate: sell.date, exitLot: matchedLot, exitPrice: sell.price,
                             totalFee: buyFeePart + sellFeePart
@@ -517,15 +536,20 @@
                         buy.lot -= matchedLot;
                         buy.fee -= buyFeePart;
                         
-                        if (buy.lot < 0.001) buys.shift();
+                        if (buy.lot < 0.001) {
+                            if(buy.id) openTransactionsToUpdate[buy.id] = { delete: true }; // DB'den geleni silinecek olarak işaretle
+                            buys.shift();
+                        } else {
+                            if(buy.id) openTransactionsToUpdate[buy.id] = { newLot: buy.lot }; // DB'den geleni güncellenecek olarak işaretle
+                        }
                     }
                 });
 
                 buys.forEach(buy => {
-                    if(buy.lot > 0) {
+                    if(buy.lot > 0 && !buy.id) { // Sadece yeni eklenen ve hala lotu olan alışları açık pozisyon yap
                         const entryValue = buy.lot * buy.price;
                         const posSize = (currentKasaForBulk > 0) ? (entryValue / currentKasaForBulk) * 100 : 0;
-                        finalTransactions.push({
+                        newOpenTransactions.push({
                             code: code, positionSize: posSize, entryDate: buy.date, entryLot: buy.lot, entryPrice: buy.price,
                             exitDate: '', exitLot: 0, exitPrice: 0, totalFee: buy.fee
                         });
@@ -533,18 +557,35 @@
                 });
             }
 
-            if (finalTransactions.length > 0) {
+            if (closedTransactions.length > 0 || newOpenTransactions.length > 0 || Object.keys(openTransactionsToUpdate).length > 0) {
                 const batch = db.batch();
-                finalTransactions.forEach(t => {
+                // Yeni kapananları ekle
+                closedTransactions.forEach(t => {
                     calculateTransactionDetails(t);
                     const docRef = db.collection("transactions").doc();
                     batch.set(docRef, t);
                 });
+                // Yeni açılanları ekle
+                newOpenTransactions.forEach(t => {
+                     calculateTransactionDetails(t);
+                    const docRef = db.collection("transactions").doc();
+                    batch.set(docRef, t);
+                });
+                // Eskiden açık olup şimdi güncellenen veya silinenleri işle
+                for(const id in openTransactionsToUpdate) {
+                    const docRef = db.collection("transactions").doc(id);
+                    if(openTransactionsToUpdate[id].delete) {
+                        batch.delete(docRef);
+                    } else {
+                        batch.update(docRef, { entryLot: openTransactionsToUpdate[id].newLot });
+                    }
+                }
+                
                 await batch.commit();
-                alert(`${finalTransactions.length} adet işlem başarıyla eklendi! (Açık ve kapalı pozisyonlar dahil)`);
+                alert(`İşlemler tamamlandı!`);
                 document.getElementById('bulkData').value = '';
             } else {
-                alert("Yapıştırılan verilerde işlenecek işlem bulunamadı.");
+                alert("Yapıştırılan verilerde yeni bir kapalı veya açık pozisyon bulunamadı.");
             }
         }
         
@@ -579,6 +620,7 @@
             if (!confirm('Tüm kapalı pozisyon geçmişini kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!')) return;
             const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
             if(closedPositions.length === 0) return alert("Silinecek kapalı pozisyon bulunmuyor.");
+            
             const batch = db.batch();
             closedPositions.forEach(pos => {
                 const docRef = db.collection("transactions").doc(pos.id);
