@@ -193,7 +193,7 @@
         <div id="islemListesi" class="tab-content">
             <div class="header-with-button">
                 <h2>Açık Pozisyonlar</h2>
-                <button id="updatePricesButton">Fiyatları Güncelle</button>
+                <button id="updatePricesButton" style="padding: 5px 10px; font-size: 12px;">Fiyatları Güncelle</button>
             </div>
             <p>Anlık fiyatları tek tuşla güncelleyerek kar/zarar durumunuzu görün.</p>
             <table id="openPositionsTable">
@@ -403,7 +403,7 @@
             closedPortion.exitLot = exitLot;
             closedPortion.exitPrice = parseFloat(document.getElementById('exitPrice').value) || 0;
             closedPortion.exitDate = document.getElementById('exitDate').value;
-            delete closedPortion.id;
+            delete closedPortion.id; 
             calculateTransactionDetails(closedPortion);
             
             const remainingLot = originalTransaction.entryLot - exitLot;
@@ -485,12 +485,11 @@
             }
             if (rawOrders.length === 0) return alert("Veri formatı tanınamadı veya geçerli işlem bulunamadı.");
             
-            // Mevcut açık pozisyonları da hesaba kat
             const openPositions = allTransactions.filter(t => !t.exitDate || !t.exitLot || t.exitLot === 0);
             const buysFromDB = openPositions.map(op => ({
                 id: op.id,
                 date: op.entryDate, code: op.code, type: 'Alış', price: op.entryPrice, lot: op.entryLot,
-                fee: op.entryLot * op.entryPrice * FEE_RATE // Yaklaşık fee
+                fee: op.entryLot * op.entryPrice * FEE_RATE 
             }));
 
             const allBuys = [...buysFromDB, ...rawOrders.filter(o => o.type.toLowerCase().startsWith('al'))].sort((a,b) => new Date(a.date) - new Date(b.date));
@@ -537,16 +536,16 @@
                         buy.fee -= buyFeePart;
                         
                         if (buy.lot < 0.001) {
-                            if(buy.id) openTransactionsToUpdate[buy.id] = { delete: true }; // DB'den geleni silinecek olarak işaretle
+                            if(buy.id) openTransactionsToUpdate[buy.id] = { delete: true };
                             buys.shift();
                         } else {
-                            if(buy.id) openTransactionsToUpdate[buy.id] = { newLot: buy.lot }; // DB'den geleni güncellenecek olarak işaretle
+                            if(buy.id) openTransactionsToUpdate[buy.id] = { newLot: buy.lot };
                         }
                     }
                 });
 
                 buys.forEach(buy => {
-                    if(buy.lot > 0 && !buy.id) { // Sadece yeni eklenen ve hala lotu olan alışları açık pozisyon yap
+                    if(buy.lot > 0 && !buy.id) {
                         const entryValue = buy.lot * buy.price;
                         const posSize = (currentKasaForBulk > 0) ? (entryValue / currentKasaForBulk) * 100 : 0;
                         newOpenTransactions.push({
@@ -559,19 +558,8 @@
 
             if (closedTransactions.length > 0 || newOpenTransactions.length > 0 || Object.keys(openTransactionsToUpdate).length > 0) {
                 const batch = db.batch();
-                // Yeni kapananları ekle
-                closedTransactions.forEach(t => {
-                    calculateTransactionDetails(t);
-                    const docRef = db.collection("transactions").doc();
-                    batch.set(docRef, t);
-                });
-                // Yeni açılanları ekle
-                newOpenTransactions.forEach(t => {
-                     calculateTransactionDetails(t);
-                    const docRef = db.collection("transactions").doc();
-                    batch.set(docRef, t);
-                });
-                // Eskiden açık olup şimdi güncellenen veya silinenleri işle
+                closedTransactions.forEach(t => { calculateTransactionDetails(t); const docRef = db.collection("transactions").doc(); batch.set(docRef, t); });
+                newOpenTransactions.forEach(t => { calculateTransactionDetails(t); const docRef = db.collection("transactions").doc(); batch.set(docRef, t); });
                 for(const id in openTransactionsToUpdate) {
                     const docRef = db.collection("transactions").doc(id);
                     if(openTransactionsToUpdate[id].delete) {
@@ -628,6 +616,57 @@
             });
             await batch.commit();
             alert('Tüm kapalı pozisyonlar başarıyla silindi.');
+        }
+
+        // ANLIK FİYAT GÜNCELLEME
+        async function updateAllPrices() {
+            const updateButton = document.getElementById('updatePricesButton');
+            updateButton.disabled = true;
+            updateButton.textContent = 'Güncelleniyor...';
+
+            const openPositions = allTransactions.filter(t => !t.exitDate || !t.exitLot || t.exitLot === 0);
+            const uniqueCodes = [...new Set(openPositions.map(p => p.code))];
+
+            if (uniqueCodes.length === 0) {
+                updateButton.disabled = false;
+                updateButton.textContent = 'Fiyatları Güncelle';
+                return;
+            }
+
+            // Basit, anahtarsız bir proxy servis kullanalım
+            const promises = uniqueCodes.map(code => 
+                fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${code}.IS?region=IS&lang=en-US&includePrePost=false&interval=2m&useYfid=true&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance`)}`)
+                .then(response => response.json())
+                .then(data => {
+                    const chartData = JSON.parse(data.contents);
+                    const price = chartData?.chart?.result[0]?.meta?.regularMarketPrice;
+                    return { code, price };
+                })
+                .catch(error => {
+                    console.error(`${code} için fiyat alınamadı:`, error);
+                    return { code, price: null };
+                })
+            );
+
+            const results = await Promise.all(promises);
+
+            results.forEach(({ code, price }) => {
+                if (price) {
+                    const inputs = document.querySelectorAll(`#openPositionsTable .current-price-input`);
+                    inputs.forEach(input => {
+                        const row = input.closest('tr');
+                        const rowCode = row.cells[0].textContent;
+                        if(rowCode === code) {
+                            input.value = price.toFixed(2);
+                            // Değişikliği tetikleyerek K/Z'nin anında hesaplanmasını sağla
+                            input.dispatchEvent(new Event('input'));
+                        }
+                    });
+                }
+            });
+
+            updateButton.disabled = false;
+            updateButton.textContent = 'Fiyatları Güncelle';
         }
 
         // HESAPLAMA VE GÖRÜNTÜLEME FONKSİYONLARI
@@ -915,6 +954,7 @@
             document.getElementById('transactionForm').addEventListener('submit', handleTransactionFormSubmit);
             document.getElementById('noteForm').addEventListener('submit', handleNoteFormSubmit);
             document.getElementById('deleteAllClosedButton').addEventListener('click', deleteAllClosedPositions);
+            document.getElementById('updatePricesButton').addEventListener('click', updateAllPrices);
             ['entryLot', 'entryPrice', 'exitLot', 'exitPrice'].forEach(id => document.getElementById(id).addEventListener('input', autoCalculateFee));
             document.getElementById('entryLot').addEventListener('input', calculatePositionSize);
             document.getElementById('entryPrice').addEventListener('input', calculatePositionSize);
