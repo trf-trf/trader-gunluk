@@ -149,8 +149,8 @@
         hr.solid { border-top: 2px solid var(--border-color); margin: 40px 0; }
         .trade-group-summary { font-weight: bold; background-color: #2c3a47 !important; cursor: pointer; }
         .trade-group-detail { display: none; background-color: #3b4c5d !important; }
-        .trade-group-summary td:first-child::before { content: '+ '; margin-right: 5px; }
-        .trade-group-summary.expanded td:first-child::before { content: '- '; }
+        .trade-group-summary td:first-child::before { content: '+ '; margin-right: 5px; font-family: monospace;}
+        .trade-group-summary.expanded td:first-child::before { content: '- '; font-family: monospace;}
 
         @media (max-width: 900px) {
             .dashboard-chart-grid { grid-template-columns: 1fr; }
@@ -176,134 +176,19 @@
         </div>
 
         <div id="dashboard" class="tab-content active">
-            <h2>Performans Özeti</h2>
-            <div id="dashboardGrid" class="dashboard-grid"></div>
-            <div class="dashboard-chart-container">
-                <h3>Görsel Analiz</h3>
-                <div class="dashboard-chart-grid">
-                    <div class="chart-wrapper">
-                        <canvas id="kasaGrowthChart"></canvas>
-                        <div class="chart-options">
-                            <label><input type="radio" name="kasaCurrency" value="TRY" checked> TRY</label>
-                            <label><input type="radio" name="kasaCurrency" value="USD"> USD</label>
-                            <label><input type="radio" name="kasaCurrency" value="REEL"> Reel</label>
-                        </div>
-                    </div>
-                    <div class="chart-wrapper">
-                        <canvas id="winRateChart"></canvas>
-                    </div>
-                </div>
             </div>
-        </div>
         
         <div id="islemListesi" class="tab-content">
-            <div class="header-with-button">
-                <h2>Açık Pozisyonlar</h2>
-                <button id="updatePricesButton" style="padding: 5px 10px; font-size: 12px;">Fiyatları Güncelle</button>
             </div>
-            <p>Anlık fiyatları tek tuşla güncelleyerek kar/zarar durumunuzu görün.</p>
-            <table id="openPositionsTable">
-                <thead>
-                    <tr>
-                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Maliyet (TL)</th>
-                        <th>Gün</th><th>Anlık Fiyat</th><th>Güncel K/Z (TL)</th><th>Güncel K/Z (%)</th><th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-            
-            <hr class="solid">
-
-            <h2>İşlem Girişi ve Kasa Yönetimi</h2>
-            <div id="entry-and-cash-management">
-                <h3 id="formHeader">Tekil İşlem Girişi</h3>
-                <form id="transactionForm">
-                    <div class="form-grid">
-                        <div class="form-group"><label for="code">Hisse Kodu:</label><input type="text" id="code" required></div>
-                        <div class="form-group"><label for="positionSize">Position Size (% Kasa):</label><input type="number" id="positionSize" step="0.1" readonly></div>
-                        <div class="form-group"><label for="entryDate">Giriş Tarihi:</label><input type="date" id="entryDate" required></div>
-                        <div class="form-group"><label for="entryLot">Giriş Lot:</label><input type="number" id="entryLot" required></div>
-                        <div class="form-group"><label for="entryPrice">Giriş Fiyatı:</label><input type="number" id="entryPrice" step="0.01" required></div>
-                        <div class="form-group"><label for="entryFee">Giriş Fee (TL):</label><input type="number" id="entryFee" step="0.01" readonly></div>
-                        <div class="form-group"><label for="exitDate">Çıkış Tarihi:</label><input type="date" id="exitDate"></div>
-                        <div class="form-group"><label for="exitLot">Çıkış Lot:</label><input type="number" id="exitLot"></div>
-                        <div class="form-group"><label for="exitPrice">Çıkış Fiyatı:</label><input type="number" id="exitPrice" step="0.01"></div>
-                        <div class="form-group"><label for="exitFee">Çıkış Fee (TL):</label><input type="number" id="exitFee" step="0.01" readonly></div>
-                    </div>
-                    <button type="submit" id="submitButton">İşlemi Kaydet</button>
-                    <button type="button" onclick="resetForm()" style="display: none; background-color: #7f8c8d; color: white;" id="cancelButton">İptal</button>
-                </form>
-                
-                <h3>Kasa Yönetimi</h3>
-                <div class="kasa-grid">
-                    <div class="kasa-group"><label for="initialKasa">Başlangıç Kasası:</label><input type="number" id="initialKasa" placeholder="0.00"></div>
-                    <div class="kasa-group"><label for="kasaAddition">Kasaya Ekle/Çıkar (+/-):</label><input type="number" id="kasaAddition" placeholder="Örn: 5000 veya -1000"></div>
-                    <div class="kasa-group" style="align-self: flex-end;"><button type="button" onclick="updateKasa()">Kasayı Güncelle</button></div>
-                </div>
-
-                <h3>Toplu İşlem Girişi</h3>
-                <div class="form-group">
-                    <label for="bulkData">Aracı kurum verilerini (başlık satırı dahil) buraya yapıştırın:</label>
-                    <textarea id="bulkData" placeholder="Tarih	Hisse	Alış/Satış	Fiyat	Adet	Tutar	Fee" style="height: 150px; white-space: pre; overflow-wrap: normal; overflow-x: scroll;"></textarea>
-                    <button type="button" class="import-button" onclick="processBulkData()">İşlemleri Aktar</button>
-                </div>
-            </div>
-
-            <hr class="solid">
-
-            <div class="header-with-button">
-                <h2>Kapalı Pozisyonlar (İşlem Geçmişi)</h2>
-                <button id="deleteAllClosedButton" class="delete-btn" style="padding: 5px 10px; font-size: 12px;">Tümünü Sil</button>
-            </div>
-            <table id="closedPositionsTable">
-                <thead>
-                    <tr>
-                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
-                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th>
-                        <th>Fee (TL)</th><th>PnL (%)</th><th>Net PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
 
         <div id="analiz" class="tab-content">
-            <h2>Performans Analizi</h2>
-            <div class="form-group">
-                <label for="analysisPeriod">Analiz Periyodu:</label>
-                <select id="analysisPeriod">
-                    <option value="all">Tümü</option><option value="ytd">Yıl Başından Beri</option><option value="quarter">Son Çeyrek</option>
-                    <option value="month">Son 30 Gün</option><option value="week">Son 7 Gün</option>
-                </select>
             </div>
-            <div id="analysisResults" class="analiz-grid"></div>
-        </div>
 
         <div id="karsilastirma" class="tab-content">
-            <h2>Getiri Karşılaştırması</h2>
-            <div class="form-group">
-                <label for="comparisonPeriod">Karşılaştırma Periyodu:</label>
-                <select id="comparisonPeriod">
-                    <option value="1y">Son 1 Yıl</option><option value="ytd">Yıl Başından Beri</option><option value="6m">Son 6 Ay</option>
-                    <option value="3m">Son 3 Ay</option><option value="1m">Son 30 Gün</option><option value="1w">Son 7 Gün</option>
-                </select>
             </div>
-            <div class="form-group chart-options">
-                <label><input type="radio" name="comparisonType" value="REEL" checked> Reel Getiri</label>
-                <label><input type="radio" name="comparisonType" value="NOMINAL"> Nominal Getiri</label>
-            </div>
-            <div id="comparisonChartContainer"><canvas id="comparisonChart"></canvas></div>
-        </div>
 
         <div id="notlar" class="tab-content">
-             <h2>Not Defteri</h2>
-            <form id="noteForm" class="note-form">
-                <textarea id="newNoteInput" placeholder="Yeni bir not yazın..." required></textarea>
-                <button type="submit">Not Ekle</button>
-            </form>
-            <h3>Kaydedilmiş Notlar</h3>
-            <ul id="notesList"></ul>
-        </div>
+            </div>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
@@ -396,7 +281,6 @@
                     exitLot: exitLot,
                     exitPrice: parseFloat(document.getElementById('exitPrice').value) || 0,
                 };
-                 // Yeni eklenen işleme grup ID'si ata
                 if (!editingTransactionId) {
                     transactionData.tradeGroupId = `trade_${Date.now()}`;
                 } else {
@@ -409,7 +293,6 @@
                     await db.collection("transactions").add(transactionData);
                 }
             }
-
             resetForm();
             submitButton.disabled = false;
         }
@@ -426,16 +309,15 @@
             const updatedOpenPortion = {
                 ...originalTransaction,
                 entryLot: remainingLot,
-                positionSize: (remainingLot * originalTransaction.entryPrice / kasa.current) * 100
+                positionSize: (remainingLot * originalTransaction.entryPrice / kasa.current) * 100,
+                totalFee: (originalTransaction.totalFee || 0) * (remainingLot / originalTransaction.entryLot)
             };
-            calculateTransactionDetails(updatedOpenPortion);
-
+            
             const batch = db.batch();
             const newClosedRef = db.collection("transactions").doc();
             batch.set(newClosedRef, closedPortion);
             const originalRef = db.collection("transactions").doc(originalTransaction.id);
             batch.update(originalRef, updatedOpenPortion);
-
             await batch.commit();
         }
 
@@ -559,7 +441,7 @@
                             code: code, positionSize: posSize, entryDate: buy.date, entryLot: matchedLot, entryPrice: buy.price,
                             exitDate: sell.date, exitLot: matchedLot, exitPrice: sell.price,
                             totalFee: buyFeePart + sellFeePart,
-                            tradeGroupId: buy.tradeGroupId || `trade_${Date.now()}` // Grup ID'sini devral veya yeni oluştur
+                            tradeGroupId: buy.tradeGroupId || `trade_${Date.now()}`
                         });
                         
                         sellLot -= matchedLot;
@@ -833,85 +715,57 @@
             for (const groupId in groupedTrades) {
                 const group = groupedTrades[groupId].sort((a,b) => new Date(a.exitDate) - new Date(b.exitDate));
                 
-                if (group.length > 1) { // Birden fazla parçası olan işlemleri grupla
-                    const summary = {
-                        code: group[0].code,
-                        entryDate: group[0].entryDate,
-                        entryLot: group.reduce((sum, t) => sum + t.entryLot, 0),
-                        entryPrice: group[0].entryPrice,
-                        exitDate: group[group.length - 1].exitDate,
-                        exitLot: group.reduce((sum, t) => sum + t.exitLot, 0),
-                        get exitPriceAvg() { return group.reduce((sum, t) => sum + (t.exitPrice * t.exitLot), 0) / this.exitLot; },
-                        holdingPeriod: Math.round((new Date(group[group.length - 1].exitDate) - new Date(group[0].entryDate)) / (1000 * 60 * 60 * 24)),
-                        totalFee: group.reduce((sum, t) => sum + t.totalFee, 0),
-                        pnlTL: group.reduce((sum, t) => sum + t.pnlTL, 0),
-                        get pnlPerc() { const totalEntry = this.entryLot * this.entryPrice; return (this.pnlTL / (totalEntry + this.totalFee)) * 100; },
-                        kasaEtkisi: group.reduce((sum, t) => sum + (t.kasaEtkisi / 100), 0) * 100, // This is an approximation
-                    };
+                const summary = {
+                    code: group[0].code,
+                    entryDate: group.map(t => t.entryDate).sort()[0],
+                    entryLot: group.reduce((sum, t) => sum + t.entryLot, 0),
+                    get entryPriceAvg() { return group.reduce((sum, t) => sum + (t.entryPrice * t.entryLot), 0) / this.entryLot; },
+                    exitDate: group[group.length - 1].exitDate,
+                    exitLot: group.reduce((sum, t) => sum + t.exitLot, 0),
+                    get exitPriceAvg() { return group.reduce((sum, t) => sum + (t.exitPrice * t.exitLot), 0) / this.exitLot; },
+                    holdingPeriod: Math.round((new Date(group[group.length - 1].exitDate) - new Date(group[0].entryDate)) / (1000 * 60 * 60 * 24)),
+                    totalFee: group.reduce((sum, t) => sum + (t.totalFee || 0), 0),
+                    pnlTL: group.reduce((sum, t) => sum + (t.pnlTL || 0), 0),
+                    get pnlPerc() { const totalEntry = this.entryLot * this.entryPriceAvg; return (this.pnlTL / (totalEntry + this.totalFee)) * 100; },
+                    kasaEtkisi: group.reduce((sum, t) => sum + (t.kasaEtkisi || 0), 0)
+                };
 
-                    const pnlClass = summary.pnlTL > 0 ? 'profit' : 'loss';
-                    const summaryRow = tableBody.insertRow();
-                    summaryRow.className = 'trade-group-summary';
-                    summaryRow.onclick = () => summaryRow.classList.toggle('expanded');
-                    summaryRow.innerHTML = `
-                        <td>${summary.code}</td><td>${summary.positionSize ? summary.positionSize.toFixed(2) + '%' : 'N/A'}</td>
-                        <td>${summary.entryDate}</td><td>${summary.entryLot}</td>
-                        <td>${summary.entryPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3})}</td>
-                        <td>${summary.exitDate}</td><td>${summary.exitLot}</td>
-                        <td>${summary.exitPriceAvg.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3})}</td>
-                        <td>${summary.holdingPeriod}</td><td>${summary.totalFee.toFixed(2)}</td>
-                        <td class="${pnlClass}">${summary.pnlPerc.toFixed(2)}%</td>
-                        <td class="${pnlClass}">${summary.pnlTL.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})}</td>
-                        <td class="${pnlClass}">${summary.kasaEtkisi.toFixed(2)}%</td>
-                        <td>-</td>`;
-                    
-                    group.forEach(t => {
-                        const detailRow = tableBody.insertRow();
-                        detailRow.className = 'trade-group-detail';
-                         const pnlClassDet = t.pnlTL > 0 ? 'profit' : 'loss';
-                        detailRow.innerHTML = `
-                            <td style="padding-left: 25px;">${t.code}</td><td>${t.positionSize ? t.positionSize.toFixed(2) + '%' : 'N/A'}</td>
-                            <td>${t.entryDate}</td><td>${t.entryLot}</td>
-                            <td>${t.entryPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3})}</td>
-                            <td>${t.exitDate}</td><td>${t.exitLot}</td>
-                            <td>${t.exitPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3})}</td>
-                            <td>${t.holdingPeriod}</td><td>${(t.totalFee || 0).toFixed(2)}</td>
-                            <td class="${pnlClassDet}">${t.pnlPerc !== null ? t.pnlPerc.toFixed(2) + '%' : '-'}</td>
-                            <td class="${pnlClassDet}">${t.pnlTL !== null ? t.pnlTL.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'}) : '-'}</td>
-                            <td class="${pnlClassDet}">${t.kasaEtkisi !== null ? t.kasaEtkisi.toFixed(2) + '%' : '-'}</td>
-                            <td class="button-group">
-                                <button class="edit-btn" onclick="editTransaction('${t.id}')">Düzenle</button>
-                                <button class="delete-btn" onclick="deleteTransaction('${t.id}')">Sil</button>
-                            </td>`;
-                         summaryRow.onclick = () => {
-                             summaryRow.classList.toggle('expanded');
-                             let nextSibling = summaryRow.nextElementSibling;
-                             while(nextSibling && nextSibling.classList.contains('trade-group-detail')) {
-                                 nextSibling.style.display = summaryRow.classList.contains('expanded') ? 'table-row' : 'none';
-                                 nextSibling = nextSibling.nextElementSibling;
-                             }
-                         };
-                    });
-                } else { // Tek parça işlemleri normal göster
-                    const t = group[0];
-                    const row = tableBody.insertRow();
-                    const pnlClass = t.pnlTL > 0 ? 'profit' : t.pnlTL < 0 ? 'loss' : '';
-                    row.innerHTML = `
-                        <td>${t.code}</td><td>${t.positionSize ? t.positionSize.toFixed(2) + '%' : 'N/A'}</td>
+                const pnlClass = summary.pnlTL > 0 ? 'profit' : 'loss';
+                const summaryRow = tableBody.insertRow();
+                summaryRow.className = 'trade-group-summary';
+                summaryRow.dataset.groupId = groupId;
+                summaryRow.innerHTML = `
+                    <td>${summary.code}</td><td>N/A</td>
+                    <td>${summary.entryDate}</td><td>${summary.entryLot}</td>
+                    <td>${summary.entryPriceAvg.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3})}</td>
+                    <td>${summary.exitDate}</td><td>${summary.exitLot}</td>
+                    <td>${summary.exitPriceAvg.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3})}</td>
+                    <td>${summary.holdingPeriod}</td><td>${summary.totalFee.toFixed(2)}</td>
+                    <td class="${pnlClass}">${summary.pnlPerc.toFixed(2)}%</td>
+                    <td class="${pnlClass}">${summary.pnlTL.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})}</td>
+                    <td class="${pnlClass}">${summary.kasaEtkisi.toFixed(2)}%</td>
+                    <td>-</td>`;
+                
+                group.forEach(t => {
+                    const detailRow = tableBody.insertRow();
+                    detailRow.className = 'trade-group-detail';
+                    detailRow.dataset.groupId = groupId;
+                    const pnlClassDet = t.pnlTL > 0 ? 'profit' : 'loss';
+                    detailRow.innerHTML = `
+                        <td style="padding-left: 25px;">${t.code}</td><td>${t.positionSize ? t.positionSize.toFixed(2) + '%' : 'N/A'}</td>
                         <td>${t.entryDate}</td><td>${t.entryLot}</td>
                         <td>${t.entryPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3})}</td>
-                        <td>${t.exitDate || 'Açık'}</td><td>${t.exitLot || '-'}</td>
-                        <td>${t.exitPrice ? t.exitPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3}) : '-'}</td>
-                        <td>${t.holdingPeriod !== null ? t.holdingPeriod : '-'}</td>
-                        <td>${(t.totalFee || 0).toFixed(2)}</td>
-                        <td class="${pnlClass}">${t.pnlPerc !== null ? t.pnlPerc.toFixed(2) + '%' : '-'}</td>
-                        <td class="${pnlClass}">${t.pnlTL !== null ? t.pnlTL.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'}) : '-'}</td>
-                        <td class="${pnlClass}">${t.kasaEtkisi !== null ? t.kasaEtkisi.toFixed(2) + '%' : '-'}</td>
+                        <td>${t.exitDate}</td><td>${t.exitLot}</td>
+                        <td>${t.exitPrice.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3})}</td>
+                        <td>${t.holdingPeriod}</td><td>${(t.totalFee || 0).toFixed(2)}</td>
+                        <td class="${pnlClassDet}">${t.pnlPerc !== null ? t.pnlPerc.toFixed(2) + '%' : '-'}</td>
+                        <td class="${pnlClassDet}">${t.pnlTL !== null ? t.pnlTL.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'}) : '-'}</td>
+                        <td class="${pnlClassDet}">${t.kasaEtkisi !== null ? t.kasaEtkisi.toFixed(2) + '%' : '-'}</td>
                         <td class="button-group">
                             <button class="edit-btn" onclick="editTransaction('${t.id}')">Düzenle</button>
                             <button class="delete-btn" onclick="deleteTransaction('${t.id}')">Sil</button>
                         </td>`;
-                }
+                });
             }
         }
         function renderDashboard(closedPositions) {
