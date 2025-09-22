@@ -181,6 +181,7 @@
                         <div class="chart-options">
                             <label><input type="radio" name="kasaCurrency" value="TRY" checked> TRY</label>
                             <label><input type="radio" name="kasaCurrency" value="USD"> USD</label>
+                            <label><input type="radio" name="kasaCurrency" value="REEL"> Reel</label>
                         </div>
                     </div>
                     <div class="chart-wrapper">
@@ -274,13 +275,17 @@
         </div>
 
         <div id="karsilastirma" class="tab-content">
-            <h2>Reel Getiri Karşılaştırması (Enflasyondan Arındırılmış)</h2>
+            <h2>Getiri Karşılaştırması</h2>
             <div class="form-group">
                 <label for="comparisonPeriod">Karşılaştırma Periyodu:</label>
                 <select id="comparisonPeriod">
                     <option value="1y">Son 1 Yıl</option><option value="ytd">Yıl Başından Beri</option><option value="6m">Son 6 Ay</option>
                     <option value="3m">Son 3 Ay</option><option value="1m">Son 30 Gün</option><option value="1w">Son 7 Gün</option>
                 </select>
+            </div>
+            <div class="form-group chart-options">
+                <label><input type="radio" name="comparisonType" value="REEL" checked> Reel Getiri</label>
+                <label><input type="radio" name="comparisonType" value="NOMINAL"> Nominal Getiri</label>
             </div>
             <div id="comparisonChartContainer"><canvas id="comparisonChart"></canvas></div>
         </div>
@@ -633,10 +638,9 @@
                 return;
             }
 
-            // Basit, anahtarsız bir proxy servis kullanalım
             const promises = uniqueCodes.map(code => 
                 fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${code}.IS?region=IS&lang=en-US&includePrePost=false&interval=2m&useYfid=true&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance`)}`)
-                .then(response => response.json())
+                .then(response => { if (!response.ok) throw new Error('Network response was not ok.'); return response.json(); })
                 .then(data => {
                     const chartData = JSON.parse(data.contents);
                     const price = chartData?.chart?.result[0]?.meta?.regularMarketPrice;
@@ -658,7 +662,6 @@
                         const rowCode = row.cells[0].textContent;
                         if(rowCode === code) {
                             input.value = price.toFixed(2);
-                            // Değişikliği tetikleyerek K/Z'nin anında hesaplanmasını sağla
                             input.dispatchEvent(new Event('input'));
                         }
                     });
@@ -837,18 +840,64 @@
         }
         function renderDashboardCharts(closedTrades) {
             const historicalUsdTryRates = { "2025-01": 35.00, "2025-02": 35.50, "2025-03": 36.00, "2025-04": 36.50, "2025-05": 37.00, "2025-06": 37.50, "2025-07": 38.00, "2025-08": 38.25, "2025-09": 38.65 };
+            const monthlyInflationRates = { "2025-01": 2.5, "2025-02": 2.2, "2025-03": 2.0, "2025-04": 1.8, "2025-05": 1.5, "2025-06": 1.37, "2025-07": 2.06, "2025-08": 2.04, "2025-09": 2.1 };
             const getRateForDate = (dateStr) => { const monthStr = dateStr ? dateStr.substring(0, 7) : ''; return historicalUsdTryRates[monthStr] || 38.65; };
+            const getCumulativeInflation = (targetDateStr, baseDateStr) => {
+                const targetDate = new Date(targetDateStr);
+                const baseDate = new Date(baseDateStr);
+                let totalInflation = 1;
+                for (let y = baseDate.getFullYear(); y <= targetDate.getFullYear(); y++) {
+                    const startMonth = (y === baseDate.getFullYear()) ? baseDate.getMonth() : 0;
+                    const endMonth = (y === targetDate.getFullYear()) ? targetDate.getMonth() : 11;
+                    for (let m = startMonth; m < endMonth; m++) {
+                        const monthKey = `${y}-${(m + 1).toString().padStart(2, '0')}`;
+                        if (monthlyInflationRates[monthKey]) {
+                            totalInflation *= (1 + monthlyInflationRates[monthKey] / 100);
+                        }
+                    }
+                }
+                return totalInflation - 1;
+            };
+
             if (kasaChartInstance) kasaChartInstance.destroy();
             const kasaCtx = document.getElementById('kasaGrowthChart').getContext('2d');
             const sortedTrades = closedTrades.slice().sort((a,b) => new Date(a.exitDate) - new Date(b.exitDate));
+            
+            const firstDate = sortedTrades.length > 0 ? sortedTrades[0].exitDate : new Date().toISOString();
+            
             const labels = ['Başlangıç'];
             const dataTRY = [(kasa.initial || 0) + (kasa.additions || 0)];
             let currentKasaTRY = (kasa.initial || 0) + (kasa.additions || 0);
             sortedTrades.forEach(t => { currentKasaTRY += t.pnlTL; labels.push(t.exitDate); dataTRY.push(currentKasaTRY); });
-            const showInUSD = document.querySelector('input[name="kasaCurrency"]:checked').value === 'USD';
-            const chartData = showInUSD ? dataTRY.map((val, i) => val / getRateForDate(labels[i] || new Date().toISOString())) : dataTRY;
-            const chartLabel = showInUSD ? 'Kasa Büyümesi (USD)' : 'Kasa Büyümesi (TL)';
-            kasaChartInstance = new Chart(kasaCtx, { type: 'line', data: { labels, datasets: [{ label: chartLabel, data: chartData, borderColor: 'rgba(26, 188, 156, 1)', backgroundColor: 'rgba(26, 188, 156, 0.1)', fill: true, tension: 0.1 }] }, options: { responsive: true, plugins: { legend: { labels: { color: 'white' } }, title: { display: true, text: 'Kasa Değerinin Zamana Göre Değişimi', color: 'white' }, tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.parsed.y.toLocaleString('tr-TR', {style:'currency', currency: showInUSD ? 'USD' : 'TRY'})}` } } }, scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white', callback: value => (showInUSD ? '$' : '₺') + `${value.toLocaleString('tr-TR')}` } } } } });
+            
+            const displayMode = document.querySelector('input[name="kasaCurrency"]:checked').value;
+            let chartData;
+            let chartLabel = '';
+            let currencySymbol = '';
+
+            switch(displayMode) {
+                case 'USD':
+                    chartData = dataTRY.map((val, i) => val / getRateForDate(labels[i] || new Date().toISOString()));
+                    chartLabel = 'Kasa Büyümesi (USD)';
+                    currencySymbol = '$';
+                    break;
+                case 'REEL':
+                     chartData = dataTRY.map((val, i) => {
+                        const date = labels[i] || new Date().toISOString();
+                        const cumulativeInflation = getCumulativeInflation(date, firstDate);
+                        return val / (1 + cumulativeInflation);
+                    });
+                    chartLabel = 'Reel Kasa Büyümesi (Sabit TL)';
+                    currencySymbol = '₺';
+                    break;
+                default: // TRY
+                    chartData = dataTRY;
+                    chartLabel = 'Kasa Büyümesi (TL)';
+                    currencySymbol = '₺';
+            }
+            
+            kasaChartInstance = new Chart(kasaCtx, { type: 'line', data: { labels, datasets: [{ label: chartLabel, data: chartData, borderColor: 'rgba(26, 188, 156, 1)', backgroundColor: 'rgba(26, 188, 156, 0.1)', fill: true, tension: 0.1 }] }, options: { responsive: true, plugins: { legend: { labels: { color: 'white' } }, title: { display: true, text: 'Kasa Değerinin Zamana Göre Değişimi', color: 'white' }, tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.parsed.y.toLocaleString('tr-TR', {style:'currency', currency: showInUSD ? 'USD' : 'TRY'})}` } } }, scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white', callback: value => currencySymbol + `${value.toLocaleString('tr-TR')}` } } } } });
+            
             if (winRateChartInstance) winRateChartInstance.destroy();
             const winRateCtx = document.getElementById('winRateChart').getContext('2d');
             const wins = closedTrades.filter(t => t.pnlTL > 0).length;
@@ -898,34 +947,48 @@
             const inflationRates = { '1y': 32.95, 'ytd': 21.50, '6m': 11.50, '3m': 5.55, '1m': 2.04, '1w': 0.47 };
             const ctx = document.getElementById('comparisonChart').getContext('2d');
             const period = document.getElementById('comparisonPeriod').value;
+            const comparisonType = document.querySelector('input[name="comparisonType"]:checked').value;
+
             const periodNominalData = { ...(nominalReturns[period] || nominalReturns['ytd']) };
-            const periodInflation = inflationRates[period] || inflationRates['ytd'];
             const periodTrades = filterTradesByPeriod(closedPositions, period);
             const periodPnl = periodTrades.reduce((a, t) => a + t.pnlTL, 0);
             const capital = (kasa.initial || 0) + (kasa.additions || 0);
             periodNominalData['TRF Performans'] = capital > 0 ? (periodPnl / capital) * 100 : 0;
-            const realReturns = Object.keys(periodNominalData).map(label => {
-                const nominalReturn = periodNominalData[label] / 100;
-                const inflation = periodInflation / 100;
-                const realReturn = ((1 + nominalReturn) / (1 + inflation)) - 1;
-                return { label, value: realReturn * 100 };
-            });
-            realReturns.sort((a, b) => b.value - a.value);
-            const labels = realReturns.map(d => d.label);
-            const data = realReturns.map(d => d.value);
+            
+            let displayData;
+
+            if (comparisonType === 'REEL') {
+                const periodInflation = inflationRates[period] || inflationRates['ytd'];
+                displayData = Object.keys(periodNominalData).map(label => {
+                    const nominalReturn = periodNominalData[label] / 100;
+                    const inflation = periodInflation / 100;
+                    const realReturn = ((1 + nominalReturn) / (1 + inflation)) - 1;
+                    return { label, value: realReturn * 100 };
+                });
+            } else {
+                displayData = Object.keys(periodNominalData).map(label => ({
+                    label,
+                    value: periodNominalData[label]
+                }));
+            }
+            
+            displayData.sort((a, b) => b.value - a.value);
+
+            const labels = displayData.map(d => d.label);
+            const data = displayData.map(d => d.value);
             const maxPositive = Math.max(0, ...data.filter(v => v > 0));
             const minNegative = Math.min(0, ...data.filter(v => v < 0));
-            const bgColors = realReturns.map(d => {
-                if (d.value >= 0) {
-                    const intensity = maxPositive > 0 ? 0.3 + (d.value / maxPositive) * 0.7 : 0.7;
+            const bgColors = data.map(value => {
+                if (value >= 0) {
+                    const intensity = maxPositive > 0 ? 0.3 + (value / maxPositive) * 0.7 : 0.7;
                     return `rgba(46, 204, 113, ${intensity})`;
                 } else {
-                    const intensity = minNegative < 0 ? 0.3 + (d.value / minNegative) * 0.7 : 0.7;
+                    const intensity = minNegative < 0 ? 0.3 + (value / minNegative) * 0.7 : 0.7;
                     return `rgba(231, 76, 60, ${intensity})`;
                 }
             });
             if (comparisonChartInstance) comparisonChartInstance.destroy();
-            comparisonChartInstance = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: 'Reel Getiri (%)', data, backgroundColor: bgColors }] }, options: { indexAxis: 'y', scales: { x: { ticks: { color: 'white', callback: value => value + '%' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }, y: { ticks: { color: 'white' }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return `Reel Getiri: ${context.parsed.x.toFixed(2)}%`; } } } } } });
+            comparisonChartInstance = new Chart(ctx, { type: 'bar', data: { labels, datasets: [{ label: `${comparisonType} Getiri (%)`, data, backgroundColor: bgColors }] }, options: { indexAxis: 'y', scales: { x: { ticks: { color: 'white', callback: value => value + '%' }, grid: { color: 'rgba(255, 255, 255, 0.1)' } }, y: { ticks: { color: 'white' }, grid: { display: false } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(context) { return `${comparisonType} Getiri: ${context.parsed.x.toFixed(2)}%`; } } } } } });
         }
         function filterTradesByPeriod(trades, period) {
             const now = new Date();
@@ -962,6 +1025,12 @@
                 radio.addEventListener('change', () => {
                     const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
                     renderDashboardCharts(closedPositions);
+                });
+            });
+            document.querySelectorAll('input[name="comparisonType"]').forEach(radio => {
+                 radio.addEventListener('change', () => {
+                    const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
+                    renderComparisonChart(closedPositions);
                 });
             });
             document.getElementById('comparisonPeriod').addEventListener('change', () => {
