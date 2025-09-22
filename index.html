@@ -475,22 +475,29 @@
                 try {
                     const parts = lines[i].trim().split(/\s+/);
                     if (parts.length < 5) continue;
-                    // Tarih formatını esnek hale getir (hem . hem / kabul etsin)
+                    
                     const dateString = parts[0].replace(/\./g, '/');
                     const dateParts = dateString.split('/');
-                    if (dateParts.length !== 3) continue;
+                    if (dateParts.length !== 3) {
+                        console.warn("Geçersiz tarih formatı, satır atlandı:", lines[i]);
+                        continue;
+                    }
                     const formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
                     
-                    const price = parseFloat(parts[3].replace('.', '').replace(',', '.'));
-                    const lot = parseInt(parts[4].replace('.', '').replace(',', '.'));
+                    const price = parseFloat(parts[3].replace(/\./g, '').replace(',', '.'));
+                    const lot = parseInt(parts[4].replace(/\./g, '').replace(',', '.'));
                     
                     const order = {
-                        date: formattedDate, code: parts[1].toUpperCase(), type: parts[2], price, lot,
+                        date: formattedDate,
+                        code: parts[1].toUpperCase(),
+                        type: parts[2],
+                        price: price,
+                        lot: lot,
                         fee: parts[6] ? parseFloat(parts[6].replace(',', '.')) : (price * lot * FEE_RATE)
                     };
 
-                    if (!order.date || !order.code || !order.type || isNaN(order.price) || isNaN(order.lot) || order.lot === 0) {
-                         console.warn("Satır atlandı:", parts);
+                    if (isNaN(new Date(order.date).getTime()) || !order.code || !order.type || isNaN(order.price) || isNaN(order.lot) || order.lot === 0) {
+                         console.warn("Hatalı veri nedeniyle satır atlandı:", lines[i], order);
                          continue;
                     }
                     rawOrders.push(order);
@@ -502,7 +509,7 @@
             const buysFromDB = openPositions.map(op => ({
                 id: op.id,
                 date: op.entryDate, code: op.code, type: 'Alış', price: op.entryPrice, lot: op.entryLot,
-                fee: op.entryLot * op.entryPrice * FEE_RATE 
+                fee: op.totalFee || (op.entryLot * op.entryPrice * FEE_RATE)
             }));
 
             const allBuys = [...buysFromDB, ...rawOrders.filter(o => o.type.toLowerCase().startsWith('al'))].sort((a,b) => new Date(a.date) - new Date(b.date));
@@ -578,7 +585,7 @@
                     if(openTransactionsToUpdate[id].delete) {
                         batch.delete(docRef);
                     } else {
-                        batch.update(docRef, { entryLot: openTransactionsToUpdate[id].newLot });
+                        batch.update(docRef, { entryLot: openTransactionsToUpdate[id].newLot, totalFee: openTransactionsToUpdate[id].newFee });
                     }
                 }
                 
@@ -870,7 +877,7 @@
             if (kasaChartInstance) kasaChartInstance.destroy();
             const kasaCtx = document.getElementById('kasaGrowthChart').getContext('2d');
             const sortedTrades = closedTrades.slice().sort((a,b) => new Date(a.exitDate) - new Date(b.exitDate));
-            const firstDate = allTransactions.length > 0 ? allTransactions[allTransactions.length - 1].entryDate : new Date().toISOString();
+            const firstDate = allTransactions.length > 0 ? allTransactions.reduce((earliest, t) => new Date(t.entryDate) < new Date(earliest) ? t.entryDate : earliest, allTransactions[0].entryDate) : new Date().toISOString();
             const labels = ['Başlangıç'];
             const dataTRY = [(kasa.initial || 0) + (kasa.additions || 0)];
             let currentKasaTRY = (kasa.initial || 0) + (kasa.additions || 0);
@@ -882,8 +889,7 @@
             switch(displayMode) {
                 case 'USD':
                     chartData = dataTRY.map((val, i) => val / getRateForDate(labels[i] || new Date().toISOString()));
-                    chartLabel = 'Kasa Büyümesi (USD)';
-                    currencySymbol = '$';
+                    chartLabel = 'Kasa Büyümesi (USD)'; currencySymbol = '$';
                     break;
                 case 'REEL':
                      chartData = dataTRY.map((val, i) => {
@@ -891,13 +897,10 @@
                         const cumulativeInflation = getCumulativeInflation(date, firstDate);
                         return val / (1 + cumulativeInflation);
                     });
-                    chartLabel = 'Reel Kasa Büyümesi (Sabit TL)';
-                    currencySymbol = '₺';
+                    chartLabel = 'Reel Kasa Büyümesi (Sabit TL)'; currencySymbol = '₺';
                     break;
-                default: // TRY
-                    chartData = dataTRY;
-                    chartLabel = 'Kasa Büyümesi (TL)';
-                    currencySymbol = '₺';
+                default:
+                    chartData = dataTRY; chartLabel = 'Kasa Büyümesi (TL)'; currencySymbol = '₺';
             }
             
             kasaChartInstance = new Chart(kasaCtx, { type: 'line', data: { labels, datasets: [{ label: chartLabel, data: chartData, borderColor: 'rgba(26, 188, 156, 1)', backgroundColor: 'rgba(26, 188, 156, 0.1)', fill: true, tension: 0.1 }] }, options: { responsive: true, plugins: { legend: { labels: { color: 'white' } }, title: { display: true, text: 'Kasa Değerinin Zamana Göre Değişimi', color: 'white' }, tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.parsed.y.toLocaleString('tr-TR', {style:'currency', currency: displayMode === 'USD' ? 'USD' : 'TRY'})}` } } }, scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white', callback: value => currencySymbol + `${value.toLocaleString('tr-TR')}` } } } } });
@@ -952,7 +955,6 @@
             const ctx = document.getElementById('comparisonChart').getContext('2d');
             const period = document.getElementById('comparisonPeriod').value;
             const comparisonType = document.querySelector('input[name="comparisonType"]:checked').value;
-
             const periodNominalData = { ...(nominalReturns[period] || nominalReturns['ytd']) };
             const periodTrades = filterTradesByPeriod(closedPositions, period);
             const periodPnl = periodTrades.reduce((a, t) => a + t.pnlTL, 0);
