@@ -475,16 +475,24 @@
                 try {
                     const parts = lines[i].trim().split(/\s+/);
                     if (parts.length < 5) continue;
-                    const dateParts = parts[0].split('.');
+                    // Tarih formatını esnek hale getir (hem . hem / kabul etsin)
+                    const dateString = parts[0].replace(/\./g, '/');
+                    const dateParts = dateString.split('/');
                     if (dateParts.length !== 3) continue;
                     const formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
-                    const price = parseFloat(parts[3].replace(',', '.'));
-                    const lot = parseInt(parts[4].replace(',', '.'));
+                    
+                    const price = parseFloat(parts[3].replace('.', '').replace(',', '.'));
+                    const lot = parseInt(parts[4].replace('.', '').replace(',', '.'));
+                    
                     const order = {
                         date: formattedDate, code: parts[1].toUpperCase(), type: parts[2], price, lot,
                         fee: parts[6] ? parseFloat(parts[6].replace(',', '.')) : (price * lot * FEE_RATE)
                     };
-                    if (!order.date || !order.code || !order.type || isNaN(order.price) || isNaN(order.lot) || order.lot === 0) continue;
+
+                    if (!order.date || !order.code || !order.type || isNaN(order.price) || isNaN(order.lot) || order.lot === 0) {
+                         console.warn("Satır atlandı:", parts);
+                         continue;
+                    }
                     rawOrders.push(order);
                 } catch (error) { console.error("Satır işlenirken hata:", lines[i], error); }
             }
@@ -526,8 +534,8 @@
                         const matchedLot = Math.min(sellLot, buy.lot);
                         const entryValue = matchedLot * buy.price;
                         const posSize = (currentKasaForBulk > 0) ? (entryValue / currentKasaForBulk) * 100 : 0;
-                        const buyFeePart = buy.fee * (matchedLot / buy.lot);
-                        const sellFeePart = sell.fee * (matchedLot / sell.lot);
+                        const buyFeePart = buy.lot > 0 ? buy.fee * (matchedLot / buy.lot) : 0;
+                        const sellFeePart = sell.lot > 0 ? sell.fee * (matchedLot / sell.lot) : 0;
                         
                         closedTransactions.push({
                             code: code, positionSize: posSize, entryDate: buy.date, entryLot: matchedLot, entryPrice: buy.price,
@@ -544,7 +552,7 @@
                             if(buy.id) openTransactionsToUpdate[buy.id] = { delete: true };
                             buys.shift();
                         } else {
-                            if(buy.id) openTransactionsToUpdate[buy.id] = { newLot: buy.lot };
+                            if(buy.id) openTransactionsToUpdate[buy.id] = { newLot: buy.lot, newFee: buy.fee };
                         }
                     }
                 });
@@ -862,18 +870,14 @@
             if (kasaChartInstance) kasaChartInstance.destroy();
             const kasaCtx = document.getElementById('kasaGrowthChart').getContext('2d');
             const sortedTrades = closedTrades.slice().sort((a,b) => new Date(a.exitDate) - new Date(b.exitDate));
-            
-            const firstDate = sortedTrades.length > 0 ? sortedTrades[0].exitDate : new Date().toISOString();
-            
+            const firstDate = allTransactions.length > 0 ? allTransactions[allTransactions.length - 1].entryDate : new Date().toISOString();
             const labels = ['Başlangıç'];
             const dataTRY = [(kasa.initial || 0) + (kasa.additions || 0)];
             let currentKasaTRY = (kasa.initial || 0) + (kasa.additions || 0);
             sortedTrades.forEach(t => { currentKasaTRY += t.pnlTL; labels.push(t.exitDate); dataTRY.push(currentKasaTRY); });
             
             const displayMode = document.querySelector('input[name="kasaCurrency"]:checked').value;
-            let chartData;
-            let chartLabel = '';
-            let currencySymbol = '';
+            let chartData, chartLabel, currencySymbol;
 
             switch(displayMode) {
                 case 'USD':
@@ -896,7 +900,7 @@
                     currencySymbol = '₺';
             }
             
-            kasaChartInstance = new Chart(kasaCtx, { type: 'line', data: { labels, datasets: [{ label: chartLabel, data: chartData, borderColor: 'rgba(26, 188, 156, 1)', backgroundColor: 'rgba(26, 188, 156, 0.1)', fill: true, tension: 0.1 }] }, options: { responsive: true, plugins: { legend: { labels: { color: 'white' } }, title: { display: true, text: 'Kasa Değerinin Zamana Göre Değişimi', color: 'white' }, tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.parsed.y.toLocaleString('tr-TR', {style:'currency', currency: showInUSD ? 'USD' : 'TRY'})}` } } }, scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white', callback: value => currencySymbol + `${value.toLocaleString('tr-TR')}` } } } } });
+            kasaChartInstance = new Chart(kasaCtx, { type: 'line', data: { labels, datasets: [{ label: chartLabel, data: chartData, borderColor: 'rgba(26, 188, 156, 1)', backgroundColor: 'rgba(26, 188, 156, 0.1)', fill: true, tension: 0.1 }] }, options: { responsive: true, plugins: { legend: { labels: { color: 'white' } }, title: { display: true, text: 'Kasa Değerinin Zamana Göre Değişimi', color: 'white' }, tooltip: { callbacks: { label: (context) => `${context.dataset.label}: ${context.parsed.y.toLocaleString('tr-TR', {style:'currency', currency: displayMode === 'USD' ? 'USD' : 'TRY'})}` } } }, scales: { x: { ticks: { color: 'white' } }, y: { ticks: { color: 'white', callback: value => currencySymbol + `${value.toLocaleString('tr-TR')}` } } } } });
             
             if (winRateChartInstance) winRateChartInstance.destroy();
             const winRateCtx = document.getElementById('winRateChart').getContext('2d');
@@ -956,7 +960,6 @@
             periodNominalData['TRF Performans'] = capital > 0 ? (periodPnl / capital) * 100 : 0;
             
             let displayData;
-
             if (comparisonType === 'REEL') {
                 const periodInflation = inflationRates[period] || inflationRates['ytd'];
                 displayData = Object.keys(periodNominalData).map(label => {
@@ -966,12 +969,8 @@
                     return { label, value: realReturn * 100 };
                 });
             } else {
-                displayData = Object.keys(periodNominalData).map(label => ({
-                    label,
-                    value: periodNominalData[label]
-                }));
+                displayData = Object.keys(periodNominalData).map(label => ({ label, value: periodNominalData[label] }));
             }
-            
             displayData.sort((a, b) => b.value - a.value);
 
             const labels = displayData.map(d => d.label);
@@ -1027,7 +1026,7 @@
                     renderDashboardCharts(closedPositions);
                 });
             });
-            document.querySelectorAll('input[name="comparisonType"]').forEach(radio => {
+             document.querySelectorAll('input[name="comparisonType"]').forEach(radio => {
                  radio.addEventListener('change', () => {
                     const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
                     renderComparisonChart(closedPositions);
