@@ -120,17 +120,13 @@
         .edit-btn:hover { background-color: #d68910; }
         .delete-btn { background-color: var(--loss-color); color: white; }
         .delete-btn:hover { background-color: #c0392b; }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 10px;
-        }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
         th, td { 
             border: 1px solid var(--border-color); 
             padding: 10px; 
             text-align: left; 
             font-size: 12px;
-            white-space: nowrap;
+            word-break: break-word;
         }
         th { background-color: var(--secondary-color); }
         tr:nth-child(even) { background-color: #3a506b; }
@@ -157,29 +153,6 @@
         .note-delete-btn { background-color: var(--loss-color); color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 15px; flex-shrink: 0; }
         .chart-options { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 10px; }
         hr.solid { border-top: 2px solid var(--border-color); margin: 40px 0; }
-        .trade-group-summary { font-weight: bold; background-color: #2c3a47 !important; }
-        .trade-group-summary.expandable { cursor: pointer; }
-        .trade-group-detail { display: none; background-color: #3b4c5d !important; }
-        .trade-group-summary.expandable td:first-child::before { content: '+ '; margin-right: 5px; font-family: monospace;}
-        .trade-group-summary.expanded td:first-child::before { content: '- '; font-family: monospace;}
-        .closed-positions-toggle {
-            background-color: var(--secondary-color);
-            cursor: pointer;
-            font-weight: bold;
-            text-align: center;
-        }
-        .closed-positions-toggle td::before {
-            content: '+ ';
-            margin-right: 5px;
-            font-family: monospace;
-        }
-        .closed-positions-toggle.expanded td::before {
-            content: '- ';
-        }
-        .closed-position-row {
-            display: none;
-        }
-
         @media (max-width: 900px) {
             .dashboard-chart-grid { grid-template-columns: 1fr; }
             .kasa-container { display: none; }
@@ -226,15 +199,15 @@
         
         <div id="islemListesi" class="tab-content">
             <div class="header-with-button">
-                <h2>Pozisyonlar</h2>
+                <h2>Açık Pozisyonlar</h2>
                 <button id="updatePricesButton" style="padding: 5px 10px; font-size: 12px;">Fiyatları Güncelle</button>
             </div>
-             <table id="positionsTable">
+            <p>Anlık fiyatları tek tuşla güncelleyerek kar/zarar durumunuzu görün.</p>
+            <table id="openPositionsTable">
                 <thead>
                     <tr>
-                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
-                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th>
-                        <th>Fee (TL)</th><th>PnL (%)</th><th>Net PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlemler</th>
+                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Maliyet (TL)</th>
+                        <th>Gün</th><th>Anlık Fiyat</th><th>Güncel K/Z (TL)</th><th>Güncel K/Z (%)</th><th>İşlemler</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -244,7 +217,7 @@
 
             <h2>İşlem Girişi ve Kasa Yönetimi</h2>
             <div id="entry-and-cash-management">
-                 <h3 id="formHeader">Tekil İşlem Girişi</h3>
+                <h3 id="formHeader">Tekil İşlem Girişi</h3>
                 <form id="transactionForm">
                     <div class="form-grid">
                         <div class="form-group"><label for="code">Hisse Kodu:</label><input type="text" id="code" required></div>
@@ -276,6 +249,23 @@
                     <button type="button" class="import-button" onclick="processBulkData()">İşlemleri Aktar</button>
                 </div>
             </div>
+
+            <hr class="solid">
+
+            <div class="header-with-button">
+                <h2>Kapalı Pozisyonlar (İşlem Geçmişi)</h2>
+                <button id="deleteAllClosedButton" class="delete-btn" style="padding: 5px 10px; font-size: 12px;">Tümünü Sil</button>
+            </div>
+            <table id="closedPositionsTable">
+                <thead>
+                    <tr>
+                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
+                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th>
+                        <th>Fee (TL)</th><th>PnL (%)</th><th>Net PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
 
         <div id="analiz" class="tab-content">
@@ -389,11 +379,12 @@
             e.preventDefault();
             const submitButton = document.getElementById('submitButton');
             submitButton.disabled = true;
+
             const originalTransaction = editingTransactionId ? allTransactions.find(t => t.id === editingTransactionId) : null;
             const entryLot = parseInt(document.getElementById('entryLot').value);
             const exitLot = parseInt(document.getElementById('exitLot').value) || 0;
 
-            if (editingTransactionId && exitLot > 0 && exitLot < originalTransaction.entryLot) {
+            if (editingTransactionId && exitLot > 0 && entryLot > exitLot) { // Kısmi satış kontrolü
                 await splitPosition(originalTransaction, exitLot);
             } else {
                 const transactionData = {
@@ -423,26 +414,28 @@
         }
 
         async function splitPosition(originalTransaction, exitLot) {
+            // 1. Kapanan kısım için yeni bir kapalı pozisyon oluştur
             const closedPortion = { ...originalTransaction };
+            closedPortion.entryLot = exitLot; // Kapanan lot miktarı
             closedPortion.exitLot = exitLot;
             closedPortion.exitPrice = parseFloat(document.getElementById('exitPrice').value) || 0;
             closedPortion.exitDate = document.getElementById('exitDate').value;
             delete closedPortion.id; 
             calculateTransactionDetails(closedPortion);
             
+            // 2. Açık kalan kısım için orijinal pozisyonu güncelle
             const remainingLot = originalTransaction.entryLot - exitLot;
             const updatedOpenPortion = {
                 ...originalTransaction,
-                entryLot: remainingLot,
-                positionSize: (remainingLot * originalTransaction.entryPrice / kasa.current) * 100,
-                totalFee: (originalTransaction.totalFee || 0) * (remainingLot / originalTransaction.entryLot)
+                entryLot: remainingLot
             };
             
             const batch = db.batch();
             const newClosedRef = db.collection("transactions").doc();
-            batch.set(newClosedRef, closedPortion);
+            batch.set(newClosedRef, closedPortion); // Kapanan kısmı yeni bir işlem olarak ekle
             const originalRef = db.collection("transactions").doc(originalTransaction.id);
-            batch.update(originalRef, updatedOpenPortion);
+            batch.update(originalRef, { entryLot: remainingLot }); // Orijinal işlemi kalan lot ile güncelle
+
             await batch.commit();
         }
 
@@ -495,10 +488,7 @@
                     if (parts.length < 5) continue;
                     const dateString = parts[0].replace(/\./g, '/');
                     const dateParts = dateString.split('/');
-                    if (dateParts.length !== 3) {
-                        console.warn("Geçersiz tarih formatı, satır atlandı:", lines[i]);
-                        continue;
-                    }
+                    if (dateParts.length !== 3) continue;
                     const formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
                     
                     const price = parseFloat(parts[3].replace(/\./g, '').replace(',', '.'));
@@ -513,10 +503,7 @@
                         fee: parts[6] ? parseFloat(parts[6].replace(',', '.')) : (price * lot * FEE_RATE)
                     };
 
-                    if (isNaN(new Date(order.date).getTime()) || !order.code || !order.type || isNaN(order.price) || isNaN(order.lot) || order.lot === 0) {
-                         console.warn("Hatalı veri nedeniyle satır atlandı:", lines[i], order);
-                         continue;
-                    }
+                    if (isNaN(new Date(order.date).getTime()) || !order.code || !order.type || isNaN(order.price) || isNaN(order.lot) || order.lot === 0) continue;
                     rawOrders.push(order);
                 } catch (error) { console.error("Satır işlenirken hata:", lines[i], error); }
             }
@@ -868,8 +855,8 @@
                 summaryRow.className = 'trade-group-summary';
                 if (group.length > 1) {
                     summaryRow.classList.add('expandable');
-                    summaryRow.dataset.groupId = groupId;
                 }
+                summaryRow.dataset.groupId = groupId;
                 
                 summaryRow.innerHTML = `
                     <td>${summary.code}</td><td>${summary.positionSize ? summary.positionSize.toFixed(2) + '%' : 'N/A'}</td>
@@ -878,7 +865,7 @@
                     <td>${summary.exitDate}</td><td>${summary.exitLot}</td>
                     <td>${summary.exitPriceAvg.toLocaleString('tr-TR', {minimumFractionDigits: 2, maximumFractionDigits: 3})}</td>
                     <td>${summary.holdingPeriod}</td><td>${summary.totalFee.toFixed(2)}</td>
-                    <td class="${pnlClass}">${summary.pnlPerc.toFixed(2)}%</td>
+                    <td class="${pnlClass}">${summary.pnlPerc ? summary.pnlPerc.toFixed(2) : '0.00'}%</td>
                     <td class="${pnlClass}">${summary.pnlTL.toLocaleString('tr-TR', {style: 'currency', currency: 'TRY'})}</td>
                     <td class="${pnlClass}">${summary.kasaEtkisi.toFixed(2)}%</td>
                     <td>-</td>`;
@@ -909,6 +896,7 @@
 
              document.querySelectorAll('.trade-group-summary.expandable').forEach(row => {
                 row.addEventListener('click', (event) => {
+                    if (event.target.tagName === 'BUTTON') return;
                     const clickedRow = event.currentTarget;
                     clickedRow.classList.toggle('expanded');
                     const isExpanded = clickedRow.classList.contains('expanded');
