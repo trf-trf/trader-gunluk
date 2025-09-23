@@ -120,17 +120,13 @@
         .edit-btn:hover { background-color: #d68910; }
         .delete-btn { background-color: var(--loss-color); color: white; }
         .delete-btn:hover { background-color: #c0392b; }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 10px;
-        }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
         th, td { 
             border: 1px solid var(--border-color); 
             padding: 10px; 
             text-align: left; 
             font-size: 12px;
-            white-space: nowrap;
+            word-break: break-word;
         }
         th { background-color: var(--secondary-color); }
         tr:nth-child(even) { background-color: #3a506b; }
@@ -157,23 +153,11 @@
         .note-delete-btn { background-color: var(--loss-color); color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 15px; flex-shrink: 0; }
         .chart-options { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 10px; }
         hr.solid { border-top: 2px solid var(--border-color); margin: 40px 0; }
-        .closed-positions-toggle {
-            background-color: var(--secondary-color);
-            cursor: pointer;
-            font-weight: bold;
-            text-align: center;
-        }
-        .closed-positions-toggle td::before {
-            content: '+ ';
-            margin-right: 5px;
-            font-family: monospace;
-        }
-        .closed-positions-toggle.expanded td::before {
-            content: '- ';
-        }
-        .closed-position-row {
-            display: none;
-        }
+        .trade-group-summary { font-weight: bold; background-color: #2c3a47 !important; }
+        .trade-group-summary.expandable { cursor: pointer; }
+        .trade-group-detail { display: none; background-color: #3b4c5d !important; }
+        .trade-group-summary.expandable td:first-child::before { content: '+ '; margin-right: 5px; font-family: monospace;}
+        .trade-group-summary.expanded td:first-child::before { content: '- '; font-family: monospace;}
 
         @media (max-width: 900px) {
             .dashboard-chart-grid { grid-template-columns: 1fr; }
@@ -221,15 +205,15 @@
         
         <div id="islemListesi" class="tab-content">
             <div class="header-with-button">
-                <h2>Pozisyonlar</h2>
+                <h2>Açık Pozisyonlar</h2>
                 <button id="updatePricesButton" style="padding: 5px 10px; font-size: 12px;">Fiyatları Güncelle</button>
             </div>
-             <table id="positionsTable">
+            <p>Anlık fiyatları tek tuşla güncelleyerek kar/zarar durumunuzu görün.</p>
+            <table id="openPositionsTable">
                 <thead>
                     <tr>
-                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
-                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th>
-                        <th>Fee (TL)</th><th>PnL (%)</th><th>Net PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlemler</th>
+                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Maliyet (TL)</th>
+                        <th>Gün</th><th>Anlık Fiyat</th><th>Güncel K/Z (TL)</th><th>Güncel K/Z (%)</th><th>İşlemler</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -239,7 +223,7 @@
 
             <h2>İşlem Girişi ve Kasa Yönetimi</h2>
             <div id="entry-and-cash-management">
-                 <h3 id="formHeader">Tekil İşlem Girişi</h3>
+                <h3 id="formHeader">Tekil İşlem Girişi</h3>
                 <form id="transactionForm">
                     <div class="form-grid">
                         <div class="form-group"><label for="code">Hisse Kodu:</label><input type="text" id="code" required></div>
@@ -271,6 +255,23 @@
                     <button type="button" class="import-button" onclick="processBulkData()">İşlemleri Aktar</button>
                 </div>
             </div>
+
+            <hr class="solid">
+
+            <div class="header-with-button">
+                <h2>Kapalı Pozisyonlar (İşlem Geçmişi)</h2>
+                <button id="deleteAllClosedButton" class="delete-btn" style="padding: 5px 10px; font-size: 12px;">Tümünü Sil</button>
+            </div>
+            <table id="closedPositionsTable">
+                <thead>
+                    <tr>
+                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
+                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th>
+                        <th>Fee (TL)</th><th>PnL (%)</th><th>Net PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
 
         <div id="analiz" class="tab-content">
@@ -779,13 +780,12 @@
             const tableBody = document.getElementById('positionsTable').getElementsByTagName('tbody')[0];
             tableBody.innerHTML = '';
             
-            const openPositions = allTransactions.filter(t => !t.exitDate || !t.exitLot || t.exitLot === 0)
-                                                 .sort((a,b) => new Date(b.entryDate) - new Date(a.entryDate));
+            const openPositions = allTransactions.filter(t => !t.exitDate || !t.exitLot || t.exitLot === 0).sort((a,b) => new Date(b.entryDate) - new Date(a.entryDate));
             const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
 
-            // Önce açık pozisyonları render et
             openPositions.forEach(t => {
                 const row = tableBody.insertRow();
+                row.dataset.id = t.id;
                 const holdingDays = Math.round((new Date() - new Date(t.entryDate)) / (1000 * 60 * 60 * 24));
                 row.innerHTML = `
                     <td>${t.code}</td><td>${t.positionSize ? t.positionSize.toFixed(2) + '%' : 'N/A'}</td>
@@ -799,17 +799,28 @@
                     </td>`;
             });
             
-            document.querySelectorAll('.current-price-input').forEach(input => input.removeEventListener('input', handleLivePnlInput));
             document.querySelectorAll('.current-price-input').forEach(input => input.addEventListener('input', handleLivePnlInput));
 
-            // Kapalı pozisyonlar için aç/kapa satırını ekle
             if (closedPositions.length > 0) {
                 const toggleRow = tableBody.insertRow();
                 toggleRow.className = 'closed-positions-toggle';
                 toggleRow.innerHTML = `<td colspan="14">Kapalı Pozisyonları Göster (+)</td>`;
                 
-                // Kapalı pozisyonları (gruplanmış) render et
-                renderGroupedClosedPositions(tableBody, closedPositions);
+                const groupedTrades = {};
+                closedPositions.forEach(t => {
+                    if (!t.tradeGroupId) t.tradeGroupId = `legacy_${t.id}`;
+                    if (!groupedTrades[t.tradeGroupId]) groupedTrades[t.tradeGroupId] = [];
+                    groupedTrades[t.tradeGroupId].push(t);
+                });
+                const sortedGroupIds = Object.keys(groupedTrades).sort((a, b) => {
+                    const dateA = new Date(groupedTrades[a][0].entryDate);
+                    const dateB = new Date(groupedTrades[b][0].entryDate);
+                    return dateB - dateA;
+                });
+
+                sortedGroupIds.forEach(groupId => {
+                     // Kapalı pozisyonları buraya render et...
+                });
             }
         }
         function handleLivePnlInput(e) {
@@ -833,33 +844,34 @@
                 pnlAmountCell.className = ''; pnlPercentCell.className = '';
             }
         }
-        function renderGroupedClosedPositions(tableBody, closedPositions) {
-            //... bu fonksiyon öncekiyle aynı ...
-        }
-        function renderDashboard(closedPositions) {
-            //... bu fonksiyon öncekiyle aynı ...
-        }
-        function renderDashboardCharts(closedTrades) {
-            //... bu fonksiyon öncekiyle aynı ...
-        }
-        function renderAnalysis(closedPositions) {
-            //... bu fonksiyon öncekiyle aynı ...
-        }
-        function renderComparisonChart(closedPositions) {
-           //... bu fonksiyon öncekiyle aynı ...
-        }
-        function filterTradesByPeriod(trades, period) {
-           //... bu fonksiyon öncekiyle aynı ...
-        }
-        
+
+        // ... Diğer tüm render, calculate ve event listener fonksiyonları buraya gelecek ...
+
         document.addEventListener('DOMContentLoaded', () => {
-            // Statik HTML'i doldur
-            // ...
+            // Statik HTML'i doldurma kodları
+            const dashboardTab = document.getElementById('dashboard');
+            dashboardTab.innerHTML = `<h2>Performans Özeti</h2><div id="dashboardGrid" class="dashboard-grid"></div><div class="dashboard-chart-container"><h3>Görsel Analiz</h3><div class="dashboard-chart-grid"><div class="chart-wrapper"><canvas id="kasaGrowthChart"></canvas><div class="chart-options"><label><input type="radio" name="kasaCurrency" value="TRY" checked> TRY</label><label><input type="radio" name="kasaCurrency" value="USD"> USD</label><label><input type="radio" name="kasaCurrency" value="REEL"> Reel</label></div></div><div class="chart-wrapper"><canvas id="winRateChart"></canvas></div></div></div>`;
+            const analizTab = document.getElementById('analiz');
+            analizTab.innerHTML = `<h2>Performans Analizi</h2><div class="form-group"><label for="analysisPeriod">Analiz Periyodu:</label><select id="analysisPeriod"><option value="all">Tümü</option><option value="ytd">Yıl Başından Beri</option><option value="quarter">Son Çeyrek</option><option value="month">Son 30 Gün</option><option value="week">Son 7 Gün</option></select></div><div id="analysisResults" class="analiz-grid"></div>`;
+            const karsilastirmaTab = document.getElementById('karsilastirma');
+            karsilastirmaTab.innerHTML = `<h2>Getiri Karşılaştırması</h2><div class="form-group"><label for="comparisonPeriod">Karşılaştırma Periyodu:</label><select id="comparisonPeriod"><option value="1y">Son 1 Yıl</option><option value="ytd">Yıl Başından Beri</option><option value="6m">Son 6 Ay</option><option value="3m">Son 3 Ay</option><option value="1m">Son 30 Gün</option><option value="1w">Son 7 Gün</option></select></div><div class="form-group chart-options"><label><input type="radio" name="comparisonType" value="REEL" checked> Reel Getiri</label><label><input type="radio" name="comparisonType" value="NOMINAL"> Nominal Getiri</label></div><div id="comparisonChartContainer"><canvas id="comparisonChart"></canvas></div>`;
+            const notlarTab = document.getElementById('notlar');
+            notlarTab.innerHTML = `<h2>Not Defteri</h2><form id="noteForm" class="note-form"><textarea id="newNoteInput" placeholder="Yeni bir not yazın..." required></textarea><button type="submit">Not Ekle</button></form><h3>Kaydedilmiş Notlar</h3><ul id="notesList"></ul>`;
+            
+            // Ana event listener'ları bağla
             loadRealtimeData();
             document.querySelector('.tab-link[onclick*="dashboard"]').click();
-            
-            // Event Listeners
-            // ...
+            document.getElementById('transactionForm').addEventListener('submit', handleTransactionFormSubmit);
+            document.getElementById('noteForm').addEventListener('submit', handleNoteFormSubmit);
+            document.getElementById('deleteAllClosedButton').addEventListener('click', deleteAllClosedPositions);
+            document.getElementById('updatePricesButton').addEventListener('click', updateAllPrices);
+            ['entryLot', 'entryPrice', 'exitLot', 'exitPrice'].forEach(id => document.getElementById(id).addEventListener('input', autoCalculateFee));
+            document.getElementById('entryLot').addEventListener('input', calculatePositionSize);
+            document.getElementById('entryPrice').addEventListener('input', calculatePositionSize);
+            document.querySelectorAll('input[name="kasaCurrency"]').forEach(radio => radio.addEventListener('change', () => { const closed = allTransactions.filter(t=>t.pnlTL !== null); renderDashboardCharts(closed); }));
+            document.querySelectorAll('input[name="comparisonType"]').forEach(radio => radio.addEventListener('change', () => { const closed = allTransactions.filter(t=>t.pnlTL !== null); renderComparisonChart(closed); }));
+            document.getElementById('comparisonPeriod').addEventListener('change', () => { const closed = allTransactions.filter(t=>t.pnlTL !== null); renderComparisonChart(closed); });
+            document.getElementById('analysisPeriod').addEventListener('change', () => { const closed = allTransactions.filter(t=>t.pnlTL !== null); renderAnalysis(closed); });
         });
     </script>
 </body>
