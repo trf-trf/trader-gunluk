@@ -153,6 +153,11 @@
         .note-delete-btn { background-color: var(--loss-color); color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 15px; flex-shrink: 0; }
         .chart-options { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 10px; }
         hr.solid { border-top: 2px solid var(--border-color); margin: 40px 0; }
+        .trade-group-summary { font-weight: bold; background-color: #2c3a47 !important; }
+        .trade-group-summary.expandable { cursor: pointer; }
+        .trade-group-detail { display: none; background-color: #3b4c5d !important; }
+        .trade-group-summary.expandable td:first-child::before { content: '+ '; margin-right: 5px; font-family: monospace;}
+        .trade-group-summary.expanded td:first-child::before { content: '- '; font-family: monospace;}
 
         @media (max-width: 900px) {
             .dashboard-chart-grid { grid-template-columns: 1fr; }
