@@ -120,20 +120,16 @@
         .edit-btn:hover { background-color: #d68910; }
         .delete-btn { background-color: var(--loss-color); color: white; }
         .delete-btn:hover { background-color: #c0392b; }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 10px;
-        }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
         th, td { 
             border: 1px solid var(--border-color); 
             padding: 10px; 
             text-align: left; 
             font-size: 12px;
-            white-space: nowrap;
+            word-break: break-word;
         }
         th { background-color: var(--secondary-color); }
-        tr.open-position:nth-child(even) { background-color: #3a506b; }
+        tr:nth-child(even) { background-color: #3a506b; }
         .profit { color: var(--profit-color); }
         .loss { color: var(--loss-color); }
         .kasa-container { position: fixed; top: 20px; right: 20px; background-color: var(--secondary-color); padding: 15px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.5); text-align: center; z-index: 1000; }
@@ -157,24 +153,6 @@
         .note-delete-btn { background-color: var(--loss-color); color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 15px; flex-shrink: 0; }
         .chart-options { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 10px; }
         hr.solid { border-top: 2px solid var(--border-color); margin: 40px 0; }
-        
-        .closed-positions-toggle {
-            background-color: var(--secondary-color);
-            cursor: pointer;
-            font-weight: bold;
-            text-align: center;
-        }
-        .closed-positions-toggle td::before {
-            content: '+ ';
-            margin-right: 5px;
-            font-family: monospace;
-        }
-        .closed-positions-toggle.expanded td::before {
-            content: '- ';
-        }
-        .closed-position-row {
-            display: none;
-        }
 
         @media (max-width: 900px) {
             .dashboard-chart-grid { grid-template-columns: 1fr; }
@@ -222,15 +200,15 @@
         
         <div id="islemListesi" class="tab-content">
             <div class="header-with-button">
-                <h2>Pozisyonlar</h2>
+                <h2>Açık Pozisyonlar</h2>
                 <button id="updatePricesButton" style="padding: 5px 10px; font-size: 12px;">Fiyatları Güncelle</button>
             </div>
-             <table id="positionsTable">
+            <p>Anlık fiyatları tek tuşla güncelleyerek kar/zarar durumunuzu görün.</p>
+            <table id="openPositionsTable">
                 <thead>
                     <tr>
-                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
-                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th>
-                        <th>Fee (TL)</th><th>PnL (%)</th><th>Net PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlemler</th>
+                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Maliyet (TL)</th>
+                        <th>Gün</th><th>Anlık Fiyat</th><th>Güncel K/Z (TL)</th><th>Güncel K/Z (%)</th><th>İşlemler</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -240,7 +218,7 @@
 
             <h2>İşlem Girişi ve Kasa Yönetimi</h2>
             <div id="entry-and-cash-management">
-                 <h3 id="formHeader">Tekil İşlem Girişi</h3>
+                <h3 id="formHeader">Tekil İşlem Girişi</h3>
                 <form id="transactionForm">
                     <div class="form-grid">
                         <div class="form-group"><label for="code">Hisse Kodu:</label><input type="text" id="code" required></div>
@@ -272,6 +250,23 @@
                     <div class="kasa-group" style="align-self: flex-end;"><button type="button" onclick="updateKasa()">Kasayı Güncelle</button></div>
                 </div>
             </div>
+
+            <hr class="solid">
+
+            <div class="header-with-button">
+                <h2>Kapalı Pozisyonlar (İşlem Geçmişi)</h2>
+                <button id="deleteAllClosedButton" class="delete-btn" style="padding: 5px 10px; font-size: 12px;">Tümünü Sil</button>
+            </div>
+            <table id="closedPositionsTable">
+                <thead>
+                    <tr>
+                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
+                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th>
+                        <th>Fee (TL)</th><th>PnL (%)</th><th>Net PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
 
         <div id="analiz" class="tab-content">
@@ -385,6 +380,7 @@
             e.preventDefault();
             const submitButton = document.getElementById('submitButton');
             submitButton.disabled = true;
+
             const originalTransaction = editingTransactionId ? allTransactions.find(t => t.id === editingTransactionId) : null;
             const entryLot = parseInt(document.getElementById('entryLot').value);
             const exitLot = parseInt(document.getElementById('exitLot').value) || 0;
@@ -407,6 +403,7 @@
                 } else {
                     transactionData.tradeGroupId = originalTransaction.tradeGroupId;
                 }
+                
                 if (editingTransactionId) {
                     await db.collection("transactions").doc(editingTransactionId).update(transactionData);
                 } else {
@@ -418,6 +415,7 @@
         }
 
         async function splitPosition(originalTransaction, exitLot) {
+            // 1. Kapanan kısım için yeni bir kapalı pozisyon oluştur
             const closedPortion = { ...originalTransaction };
             closedPortion.entryLot = exitLot;
             closedPortion.exitLot = exitLot;
@@ -425,6 +423,7 @@
             closedPortion.exitDate = document.getElementById('exitDate').value;
             delete closedPortion.id;
             
+            // 2. Açık kalan kısım için orijinal pozisyonu güncelle
             const remainingLot = originalTransaction.entryLot - exitLot;
             
             const batch = db.batch();
@@ -432,6 +431,7 @@
             batch.set(newClosedRef, closedPortion);
             const originalRef = db.collection("transactions").doc(originalTransaction.id);
             batch.update(originalRef, { entryLot: remainingLot });
+
             await batch.commit();
         }
 
@@ -482,17 +482,31 @@
                 try {
                     const parts = lines[i].trim().split(/\s+/);
                     if (parts.length < 5) continue;
+                    
                     const dateString = parts[0].replace(/\./g, '/');
                     const dateParts = dateString.split('/');
-                    if (dateParts.length !== 3) continue;
+                    if (dateParts.length !== 3) {
+                        console.warn("Geçersiz tarih formatı, satır atlandı:", lines[i]);
+                        continue;
+                    }
                     const formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                    
                     const price = parseFloat(parts[3].replace(/\./g, '').replace(',', '.'));
                     const lot = parseInt(parts[4].replace(/\./g, '').replace(',', '.'));
+                    
                     const order = {
-                        date: formattedDate, code: parts[1].toUpperCase(), type: parts[2], price, lot,
+                        date: formattedDate,
+                        code: parts[1].toUpperCase(),
+                        type: parts[2],
+                        price: price,
+                        lot: lot,
                         fee: parts[6] ? parseFloat(parts[6].replace(',', '.')) : (price * lot * FEE_RATE)
                     };
-                    if (isNaN(new Date(order.date).getTime()) || !order.code || !order.type || isNaN(order.price) || isNaN(order.lot) || order.lot === 0) continue;
+
+                    if (isNaN(new Date(order.date).getTime()) || !order.code || !order.type || isNaN(order.price) || isNaN(order.lot) || order.lot === 0) {
+                         console.warn("Hatalı veri nedeniyle satır atlandı:", lines[i], order);
+                         continue;
+                    }
                     rawOrders.push(order);
                 } catch (error) { console.error("Satır işlenirken hata:", lines[i], error); }
             }
@@ -500,15 +514,24 @@
             
             const openPositions = allTransactions.filter(t => !t.exitDate || !t.exitLot || t.exitLot === 0);
             const buysFromDB = openPositions.map(op => ({
-                id: op.id, tradeGroupId: op.tradeGroupId, date: op.entryDate, code: op.code, 
-                type: 'Alış', price: op.entryPrice, lot: op.entryLot,
+                id: op.id,
+                tradeGroupId: op.tradeGroupId,
+                date: op.entryDate, code: op.code, type: 'Alış', price: op.entryPrice, lot: op.entryLot,
                 fee: op.totalFee || (op.entryLot * op.entryPrice * FEE_RATE)
             }));
+
             const allBuys = [...buysFromDB, ...rawOrders.filter(o => o.type.toLowerCase().startsWith('al'))].sort((a,b) => new Date(a.date) - new Date(b.date));
             const allSells = rawOrders.filter(o => !o.type.toLowerCase().startsWith('al')).sort((a,b) => new Date(a.date) - new Date(b.date));
+            
             const tradesByCode = {};
-            allBuys.forEach(b => { if(!tradesByCode[b.code]) tradesByCode[b.code] = {buys:[], sells:[]}; tradesByCode[b.code].buys.push(b); });
-            allSells.forEach(s => { if(!tradesByCode[s.code]) tradesByCode[s.code] = {buys:[], sells:[]}; tradesByCode[s.code].sells.push(s); });
+            allBuys.forEach(b => {
+                if(!tradesByCode[b.code]) tradesByCode[b.code] = {buys:[], sells:[]};
+                tradesByCode[b.code].buys.push(b);
+            });
+             allSells.forEach(s => {
+                if(!tradesByCode[s.code]) tradesByCode[s.code] = {buys:[], sells:[]};
+                tradesByCode[s.code].sells.push(s);
+            });
 
             calculateCurrentKasa();
             const currentKasaForBulk = kasa.current;
@@ -547,6 +570,7 @@
                         }
                     }
                 });
+
                 buys.forEach(buy => {
                     if(buy.lot > 0 && !buy.id) {
                         const entryValue = buy.lot * buy.price;
@@ -566,9 +590,13 @@
                 newOpenTransactions.forEach(t => { calculateTransactionDetails(t); const docRef = db.collection("transactions").doc(); batch.set(docRef, t); });
                 for(const id in openTransactionsToUpdate) {
                     const docRef = db.collection("transactions").doc(id);
-                    if(openTransactionsToUpdate[id].delete) { batch.delete(docRef); } 
-                    else { batch.update(docRef, { entryLot: openTransactionsToUpdate[id].newLot, totalFee: openTransactionsToUpdate[id].newFee }); }
+                    if(openTransactionsToUpdate[id].delete) {
+                        batch.delete(docRef);
+                    } else {
+                        batch.update(docRef, { entryLot: openTransactionsToUpdate[id].newLot, totalFee: openTransactionsToUpdate[id].newFee });
+                    }
                 }
+                
                 await batch.commit();
                 alert(`İşlemler tamamlandı!`);
                 document.getElementById('bulkData').value = '';
@@ -608,6 +636,7 @@
             if (!confirm('Tüm kapalı pozisyon geçmişini kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!')) return;
             const closedPositions = allTransactions.filter(t => t.exitDate && t.exitLot > 0);
             if(closedPositions.length === 0) return alert("Silinecek kapalı pozisyon bulunmuyor.");
+            
             const batch = db.batch();
             closedPositions.forEach(pos => {
                 const docRef = db.collection("transactions").doc(pos.id);
@@ -622,13 +651,16 @@
             const updateButton = document.getElementById('updatePricesButton');
             updateButton.disabled = true;
             updateButton.textContent = 'Güncelleniyor...';
+
             const openPositions = allTransactions.filter(t => !t.exitDate || !t.exitLot || t.exitLot === 0);
             const uniqueCodes = [...new Set(openPositions.map(p => p.code))];
+
             if (uniqueCodes.length === 0) {
                 updateButton.disabled = false;
                 updateButton.textContent = 'Fiyatları Güncelle';
                 return;
             }
+
             const promises = uniqueCodes.map(code => 
                 fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${code}.IS?region=IS&lang=en-US&includePrePost=false&interval=2m&useYfid=true&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance`)}`)
                 .then(response => { if (!response.ok) throw new Error('Network response was not ok.'); return response.json(); })
@@ -636,9 +668,15 @@
                     const chartData = JSON.parse(data.contents);
                     const price = chartData?.chart?.result[0]?.meta?.regularMarketPrice;
                     return { code, price };
-                }).catch(error => ({ code, price: null }))
+                })
+                .catch(error => {
+                    console.error(`${code} için fiyat alınamadı:`, error);
+                    return { code, price: null };
+                })
             );
+
             const results = await Promise.all(promises);
+
             results.forEach(({ code, price }) => {
                 if (price) {
                     const inputs = document.querySelectorAll(`#openPositionsTable .current-price-input`);
@@ -652,6 +690,7 @@
                     });
                 }
             });
+
             updateButton.disabled = false;
             updateButton.textContent = 'Fiyatları Güncelle';
         }
