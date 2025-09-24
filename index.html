@@ -120,13 +120,22 @@
         .edit-btn:hover { background-color: #d68910; }
         .delete-btn { background-color: var(--loss-color); color: white; }
         .delete-btn:hover { background-color: #c0392b; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px;
+        }
         th, td { 
             border: 1px solid var(--border-color); 
-            padding: 10px; 
+            padding: 8px 10px; /* Satır yüksekliğini incelt */
             text-align: left; 
-            font-size: 12px;
-            word-break: break-word;
+            white-space: nowrap; /* Satırların taşmasını önle */
+        }
+        #openPositionsTable th, #openPositionsTable td {
+             font-size: 14px; /* Puntoyu büyüt */
+        }
+        #closedPositionsTable th, #closedPositionsTable td {
+             font-size: 12px;
         }
         th { background-color: var(--secondary-color); }
         tr:nth-child(even) { background-color: #3a506b; }
@@ -153,11 +162,6 @@
         .note-delete-btn { background-color: var(--loss-color); color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 15px; flex-shrink: 0; }
         .chart-options { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 10px; }
         hr.solid { border-top: 2px solid var(--border-color); margin: 40px 0; }
-        .trade-group-summary { font-weight: bold; background-color: #2c3a47 !important; }
-        .trade-group-summary.expandable { cursor: pointer; }
-        .trade-group-detail { display: none; background-color: #3b4c5d !important; }
-        .trade-group-summary.expandable td:first-child::before { content: '+ '; margin-right: 5px; font-family: monospace;}
-        .trade-group-summary.expanded td:first-child::before { content: '- '; font-family: monospace;}
 
         @media (max-width: 900px) {
             .dashboard-chart-grid { grid-template-columns: 1fr; }
