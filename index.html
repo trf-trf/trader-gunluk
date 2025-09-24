@@ -814,7 +814,7 @@
         function renderClosedPositionsTable(closedPositions) {
             const tableBody = document.getElementById('closedPositionsTable').getElementsByTagName('tbody')[0];
             tableBody.innerHTML = '';
-            closedPositions.sort((a,b) => new Date(b.exitDate) - new Date(a.exitDate)); // En yeni kapanan en üstte
+            closedPositions.sort((a,b) => new Date(b.exitDate) - new Date(a.exitDate));
             closedPositions.forEach(t => {
                 const row = tableBody.insertRow();
                 const pnlClass = t.pnlTL > 0 ? 'profit' : t.pnlTL < 0 ? 'loss' : '';
