@@ -415,6 +415,7 @@
         }
 
         async function splitPosition(originalTransaction, exitLot) {
+            // 1. Kapanan kısım için yeni bir kapalı pozisyon oluştur
             const closedPortion = { ...originalTransaction };
             closedPortion.entryLot = exitLot;
             closedPortion.exitLot = exitLot;
@@ -422,6 +423,7 @@
             closedPortion.exitDate = document.getElementById('exitDate').value;
             delete closedPortion.id;
             
+            // 2. Açık kalan kısım için orijinal pozisyonu güncelle
             const remainingLot = originalTransaction.entryLot - exitLot;
             
             const batch = db.batch();
