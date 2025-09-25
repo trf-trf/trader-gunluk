@@ -120,23 +120,16 @@
         .edit-btn:hover { background-color: #d68910; }
         .delete-btn { background-color: var(--loss-color); color: white; }
         .delete-btn:hover { background-color: #c0392b; }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-top: 10px;
-        }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; table-layout: fixed; }
         th, td { 
             border: 1px solid var(--border-color); 
-            padding: 8px 10px;
+            padding: 10px; 
             text-align: left; 
             font-size: 12px;
-            white-space: nowrap;
-        }
-        #positionsTable th, #positionsTable td {
-            font-size: 13px;
+            word-break: break-word;
         }
         th { background-color: var(--secondary-color); }
-        tr.open-position:nth-child(even) { background-color: #3a506b; }
+        tr:nth-child(even) { background-color: #3a506b; }
         .profit { color: var(--profit-color); }
         .loss { color: var(--loss-color); }
         .kasa-container { position: fixed; top: 20px; right: 20px; background-color: var(--secondary-color); padding: 15px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.5); text-align: center; z-index: 1000; }
@@ -160,23 +153,6 @@
         .note-delete-btn { background-color: var(--loss-color); color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; margin-left: 15px; flex-shrink: 0; }
         .chart-options { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 10px; }
         hr.solid { border-top: 2px solid var(--border-color); margin: 40px 0; }
-        .closed-positions-toggle {
-            background-color: var(--secondary-color);
-            cursor: pointer;
-            font-weight: bold;
-            text-align: center;
-        }
-        .closed-positions-toggle td::before {
-            content: '+ ';
-            margin-right: 5px;
-            font-family: monospace;
-        }
-        .closed-positions-toggle.expanded td::before {
-            content: '- ';
-        }
-        .closed-position-row {
-            display: none;
-        }
 
         @media (max-width: 900px) {
             .dashboard-chart-grid { grid-template-columns: 1fr; }
@@ -224,15 +200,15 @@
         
         <div id="islemListesi" class="tab-content">
             <div class="header-with-button">
-                <h2>Pozisyonlar</h2>
+                <h2>Açık Pozisyonlar</h2>
                 <button id="updatePricesButton" style="padding: 5px 10px; font-size: 12px;">Fiyatları Güncelle</button>
             </div>
-             <table id="positionsTable">
+            <p>Anlık fiyatları tek tuşla güncelleyerek kar/zarar durumunuzu görün.</p>
+            <table id="openPositionsTable">
                 <thead>
                     <tr>
-                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
-                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th>
-                        <th>Fee (TL)</th><th>PnL (%)</th><th>Net PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlemler</th>
+                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Maliyet (TL)</th>
+                        <th>Gün</th><th>Anlık Fiyat</th><th>Güncel K/Z (TL)</th><th>Güncel K/Z (%)</th><th>İşlemler</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -240,7 +216,7 @@
             
             <hr class="solid">
 
-            <h2>İşlem Girişi</h2>
+            <h2>İşlem Girişi ve Kasa Yönetimi</h2>
             <div id="entry-and-cash-management">
                 <h3 id="formHeader">Tekil İşlem Girişi</h3>
                 <form id="transactionForm">
@@ -267,15 +243,30 @@
                     <button type="button" class="import-button" onclick="processBulkData()">İşlemleri Aktar</button>
                 </div>
 
-                <hr class="solid">
-
-                <h2>Kasa Yönetimi</h2>
+                <h3>Kasa Yönetimi</h3>
                 <div class="kasa-grid">
                     <div class="kasa-group"><label for="initialKasa">Başlangıç Kasası:</label><input type="number" id="initialKasa" placeholder="0.00"></div>
                     <div class="kasa-group"><label for="kasaAddition">Kasaya Ekle/Çıkar (+/-):</label><input type="number" id="kasaAddition" placeholder="Örn: 5000 veya -1000"></div>
                     <div class="kasa-group" style="align-self: flex-end;"><button type="button" onclick="updateKasa()">Kasayı Güncelle</button></div>
                 </div>
             </div>
+
+            <hr class="solid">
+
+            <div class="header-with-button">
+                <h2>Kapalı Pozisyonlar (İşlem Geçmişi)</h2>
+                <button id="deleteAllClosedButton" class="delete-btn" style="padding: 5px 10px; font-size: 12px;">Tümünü Sil</button>
+            </div>
+            <table id="closedPositionsTable">
+                <thead>
+                    <tr>
+                        <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
+                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th>
+                        <th>Fee (TL)</th><th>PnL (%)</th><th>Net PnL (TL)</th><th>Kasa Etkisi (%)</th><th>İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
         </div>
 
         <div id="analiz" class="tab-content">
@@ -359,14 +350,8 @@
         // GERÇEK ZAMANLI VERİ YÖNETİMİ
         function loadRealtimeData() {
             db.collection("settings").doc("kasa").onSnapshot(doc => {
-                if (doc.exists) {
-                    kasa = doc.data();
-                } else {
-                    db.collection("settings").doc("kasa").set({ initial: 0, additions: 0 });
-                }
-                if(document.getElementById('initialKasa')) {
-                    document.getElementById('initialKasa').value = kasa.initial;
-                }
+                if (doc.exists) kasa = doc.data(); else db.collection("settings").doc("kasa").set({ initial: 0, additions: 0 });
+                if(document.getElementById('initialKasa')) document.getElementById('initialKasa').value = kasa.initial;
                 renderAll();
             });
             db.collection("notes").orderBy("createdAt", "desc").onSnapshot(snapshot => {
@@ -395,6 +380,7 @@
             e.preventDefault();
             const submitButton = document.getElementById('submitButton');
             submitButton.disabled = true;
+
             const originalTransaction = editingTransactionId ? allTransactions.find(t => t.id === editingTransactionId) : null;
             const entryLot = parseInt(document.getElementById('entryLot').value);
             const exitLot = parseInt(document.getElementById('exitLot').value) || 0;
@@ -417,6 +403,7 @@
                 } else {
                     transactionData.tradeGroupId = originalTransaction.tradeGroupId;
                 }
+                
                 if (editingTransactionId) {
                     await db.collection("transactions").doc(editingTransactionId).update(transactionData);
                 } else {
@@ -442,6 +429,7 @@
             batch.set(newClosedRef, closedPortion);
             const originalRef = db.collection("transactions").doc(originalTransaction.id);
             batch.update(originalRef, { entryLot: remainingLot });
+
             await batch.commit();
         }
 
@@ -492,12 +480,15 @@
                 try {
                     const parts = lines[i].trim().split(/\s+/);
                     if (parts.length < 5) continue;
+                    
                     const dateString = parts[0].replace(/\./g, '/');
                     const dateParts = dateString.split('/');
                     if (dateParts.length !== 3) continue;
                     const formattedDate = `${dateParts[2]}-${dateParts[1].padStart(2, '0')}-${dateParts[0].padStart(2, '0')}`;
+                    
                     const price = parseFloat(parts[3].replace(/\./g, '').replace(',', '.'));
                     const lot = parseInt(parts[4].replace(/\./g, '').replace(',', '.'));
+                    
                     const order = {
                         date: formattedDate,
                         code: parts[1].toUpperCase(),
@@ -506,6 +497,7 @@
                         lot: lot,
                         fee: parts[6] ? parseFloat(parts[6].replace(',', '.')) : (price * lot * FEE_RATE)
                     };
+
                     if (isNaN(new Date(order.date).getTime()) || !order.code || !order.type || isNaN(order.price) || isNaN(order.lot) || order.lot === 0) continue;
                     rawOrders.push(order);
                 } catch (error) { console.error("Satır işlenirken hata:", lines[i], error); }
@@ -519,16 +511,20 @@
                 date: op.entryDate, code: op.code, type: 'Alış', price: op.entryPrice, lot: op.entryLot,
                 fee: op.totalFee || (op.entryLot * op.entryPrice * FEE_RATE)
             }));
+
             const allBuys = [...buysFromDB, ...rawOrders.filter(o => o.type.toLowerCase().startsWith('al'))].sort((a,b) => new Date(a.date) - new Date(b.date));
             const allSells = rawOrders.filter(o => !o.type.toLowerCase().startsWith('al')).sort((a,b) => new Date(a.date) - new Date(b.date));
+            
             const tradesByCode = {};
             allBuys.forEach(b => { if(!tradesByCode[b.code]) tradesByCode[b.code] = {buys:[], sells:[]}; tradesByCode[b.code].buys.push(b); });
             allSells.forEach(s => { if(!tradesByCode[s.code]) tradesByCode[s.code] = {buys:[], sells:[]}; tradesByCode[s.code].sells.push(s); });
+
             calculateCurrentKasa();
             const currentKasaForBulk = kasa.current;
             let closedTransactions = [];
             let openTransactionsToUpdate = {};
             let newOpenTransactions = [];
+
             for (const code in tradesByCode) {
                 const { buys, sells } = tradesByCode[code];
                 sells.forEach(sell => {
@@ -547,9 +543,11 @@
                             totalFee: buyFeePart + sellFeePart,
                             tradeGroupId: buy.tradeGroupId || `trade_${Date.now()}`
                         });
+                        
                         sellLot -= matchedLot;
                         buy.lot -= matchedLot;
                         buy.fee -= buyFeePart;
+                        
                         if (buy.lot < 0.001) {
                             if(buy.id) openTransactionsToUpdate[buy.id] = { delete: true };
                             buys.shift();
@@ -558,6 +556,7 @@
                         }
                     }
                 });
+
                 buys.forEach(buy => {
                     if(buy.lot > 0 && !buy.id) {
                         const entryValue = buy.lot * buy.price;
@@ -570,6 +569,7 @@
                     }
                 });
             }
+
             if (closedTransactions.length > 0 || newOpenTransactions.length > 0 || Object.keys(openTransactionsToUpdate).length > 0) {
                 const batch = db.batch();
                 closedTransactions.forEach(t => { calculateTransactionDetails(t); const docRef = db.collection("transactions").doc(); batch.set(docRef, t); });
@@ -632,13 +632,16 @@
             const updateButton = document.getElementById('updatePricesButton');
             updateButton.disabled = true;
             updateButton.textContent = 'Güncelleniyor...';
+
             const openPositions = allTransactions.filter(t => !t.exitDate || !t.exitLot || t.exitLot === 0);
             const uniqueCodes = [...new Set(openPositions.map(p => p.code))];
+
             if (uniqueCodes.length === 0) {
                 updateButton.disabled = false;
                 updateButton.textContent = 'Fiyatları Güncelle';
                 return;
             }
+
             const promises = uniqueCodes.map(code => 
                 fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${code}.IS?region=IS&lang=en-US&includePrePost=false&interval=2m&useYfid=true&range=1d&corsDomain=finance.yahoo.com&.tsrc=finance`)}`)
                 .then(response => { if (!response.ok) throw new Error('Network response was not ok.'); return response.json(); })
