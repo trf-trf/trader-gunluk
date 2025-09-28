@@ -91,6 +91,7 @@
         @media (max-width: 768px) { .summary-trades-grid { grid-template-columns: 1fr; } }
 
         .loader { color: var(--text-muted-color); font-size: 14px; text-align: center; padding: 40px; }
+        .note-icon { cursor: help; }
     </style>
 </head>
 <body>
@@ -166,8 +167,8 @@
                 <thead>
                     <tr>
                         <th>Hisse</th><th>Poz. Büyüklüğü (%)</th><th>Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th><th>Güncel Fiyat</th>
-                        <th>Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th>Gün</th><th>Fee (TL)</th>
-                        <th>Net PnL (%)</th><th>Net PnL (TL)</th><th>Kasaya Etkisi (%)</th><th>Link</th><th>İşlemler</th>
+                        <th>Gün</th><th>Fee (TL)</th>
+                        <th>Net PnL (%)</th><th>Net PnL (TL)</th><th>Link</th><th>İşlemler</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -179,22 +180,10 @@
             <table id="kapaliPozisyonlarTable">
                 <thead>
                     <tr>
-                        <th data-sort-key="hisse">Hisse</th>
-                        <th>Poz. Büyüklüğü (%)</th>
-                        <th data-sort-key="girisTarihi">Giriş Tarihi</th>
-                        <th>Giriş Lot</th>
-                        <th>Giriş Fiyatı</th>
-                        <th>Güncel Fiyat</th>
-                        <th data-sort-key="cikisTarihi">Çıkış Tarihi</th>
-                        <th>Çıkış Lot</th>
-                        <th>Çıkış Fiyatı</th>
-                        <th data-sort-key="gun">Gün</th>
-                        <th>Fee (TL)</th>
-                        <th data-sort-key="netPnlYuzde">Net PnL (%)</th>
-                        <th data-sort-key="netPnlTL">Net PnL (TL)</th>
-                        <th data-sort-key="kasayaEtkisi">Kasaya Etkisi (%)</th>
-                        <th>Link</th>
-                        <th>İşlemler</th>
+                        <th data-sort-key="hisse">Hisse</th><th>Poz. Büyüklüğü (%)</th><th data-sort-key="girisTarihi">Giriş Tarihi</th><th>Giriş Lot</th><th>Giriş Fiyatı</th>
+                        <th data-sort-key="cikisTarihi">Çıkış Tarihi</th><th>Çıkış Lot</th><th>Çıkış Fiyatı</th><th data-sort-key="gun">Gün</th><th>Fee (TL)</th>
+                        <th data-sort-key="netPnlYuzde">Net PnL (%)</th><th data-sort-key="netPnlTL">Net PnL (TL)</th><th data-sort-key="kasayaEtkisi">Kasaya Etkisi (%)</th>
+                        <th>Not</th><th>Link</th><th>İşlemler</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -248,11 +237,15 @@
 <div id="modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:var(--secondary-color); padding:30px; border-radius:8px; width:90%; max-width:500px;">
         <h3 id="modalTitle">Pozisyon Kapat</h3>
-        <div class="form-grid">
+        <div class="form-grid" style="grid-template-columns: 1fr 1fr;">
             <input type="hidden" id="modalIndex">
             <div><label>Çıkış Fiyatı</label><input type="number" id="modalCikisFiyat" placeholder="Çıkış Fiyatı"></div>
             <div><label>Çıkış Lot</label><input type="number" id="modalCikisLot" placeholder="Kapatılacak Lot"></div>
-            <div><label>Çıkış Tarihi</label><input type="date" id="modalCikisTarihi"></div>
+            <div style="grid-column: 1 / -1;"><label>Çıkış Tarihi</label><input type="date" id="modalCikisTarihi"></div>
+            <div style="grid-column: 1 / -1;">
+                <label>İşlem Notu (opsiyonel)</label>
+                <textarea id="modalNote" style="min-height: 80px;"></textarea>
+            </div>
         </div>
         <div class="button-group" style="margin-top:20px;"><button id="modalKaydetBtn">Kaydet</button><button id="modalKapatBtn" style="background-color:#777;">İptal</button></div>
     </div>
@@ -275,7 +268,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const BIST_SYMBOLS = ["ACSEL", "ADEL", "ADESE", "ADNAC", "AEFES", "AFYON", "AGHOL", "AGYO", "AKBNK", "AKCNS", "AKENR", "AKFGY", "AKGRT", "AKMGY", "AKSA", "AKSEN", "ALARK", "ALBRK", "ALCAR", "ALCTL", "ALGYO", "ALKIM", "ANELE", "ANHYT", "ANSGR", "ARCLK", "ARENA", "ARMDA", "ARSAN", "ASELS", "ASLAN", "ASUZU", "ATAGY", "ATEKS", "ATLAS", "AYEN", "AYGAZ", "BAGFS", "BAKFG", "BANVT", "BERA", "BIMAS", "BIZIM", "BJKAS", "BMSCH", "BMSTL", "BOLUC", "BOSSA", "BOYNR", "BRISA", "BRKSN", "BRSAN", "BRYAT", "BSOKE", "BTCIM", "BUCIM", "BURCE", "BURVA", "CEMAS", "CEMTS", "CEOEM", "CIMSA", "CLEBI", "CMBTN", "CCOLA", "CUSAN", "DAGHL", "DAGI", "DARDL", "DENGE", "DENIZ", "DERAS", "DERIM", "DESA", "DESPC", "DEVA", "DGATE", "DGKLB", "DITAS", "DOAS", "DOBUR", "DOCO", "DOGUB", "DOHOL", "DOKTA", "ECILC", "ECZYT", "EDIP", "EGEEN", "EGGUB", "EGPRO", "EGSER", "EKGYO", "EMKEL", "ENJSA", "ENKAI", "ERBOS", "EREGL", "ERSU", "ESCOM", "ETILR", "EUHOL", "EUYO", "FENER", "FLAP", "FMIZP", "FONET", "FORMT", "FROTO", "GARAN", "GARFA", "GENTS", "GEREL", "GLBMD", "GLRYH", "GLYHO", "GOLTS", "GOODY", "GOZDE", "GRNYO", "GSDDE", "GSDHO", "GSRAY", "GUBRF", "GUSGR", "HALKB", "HALKS", "HATEK", "HDFGS", "HEKTS", "HLGYO", "HURGZ", "ICBCT", "IDEAS", "IDGYO", "IEYHO", "IHEVA", "IHGZT", "IHLAS", "IHLGM", "IHYAY", "INDES", "INFO", "INTEM", "IPEKE", "ISBIR", "ISCTR", "ISDMR", "ISFIN", "ISGYO", "ISGSY", "ISMEN", "ITTFH", "IZFAS", "IZMDC", "IZOCM", "JANTS", "KAPLM", "KAREL", "KARSN", "KARTN", "KCHOL", "KENT", "KERVT", "KLGYO", "KLMSN", "KONYA", "KORDS", "KOZAA", "KOZAL", "KRDMD", "KRSTL", "KRTEK", "KUYAS", "LIDFA", "LINK", "LKMNH", "LOGO", "LUKSK", "MAALT", "MAKTK", "MARKA", "MARTI", "MAVI", "MEGAP", "MEPET", "MERCN", "METRO", "MGROS", "MIPAZ", "MMCAS", "MNDRS", "MRGYO", "MRSHL", "MSGYO", "MTRYO", "MUTLU", "MZHLD", "NETAS", "NIBAS", "NTTUR", "NUHCM", "NUGYO", "ODAS", "OLMKS", "ORCAY", "ORGE", "ORMA", "OSMEN", "OSTIM", "OTKAR", "OYAKC", "OYLUM", "OZBAL", "OZGYO", "OZKGY", "PAGYO", "PARSN", "PEGYO", "PENGD", "PETKM", "PETUN", "PGSUS", "PINSU", "PKART", "PLAS", "POLHO", "PRKME", "PRZMA", "PSDTC", "PTOFS", "QNBFB", "QNBFL", "RALYH", "RAYSG", "RHEA", "RODRG", "ROYAL", "RTALB", "RYGYO", "SAFKR", "SAHOL", "SANKO", "SARKY", "SASA", "SEKUR", "SELEC", "SELGD", "SERVE", "SISE", "SKBNK", "SNGYO", "SODSN", "SOKM", "SONME", "SRVGY", "SUMAS", "TATGD", "TAVHL", "TBORG", "TCELL", "TCML", "TEKTU", "THYAO", "TKFEN", "TKNSA", "TMSN", "TOASO", "TRCAS", "TRGYO", "TRKCM", "TSKB", "TSPOR", "TTKOM", "TTRAK", "TUKAS", "TUPRS", "TURGG", "ULKER", "UNYEC", "USAK", "UTPYA", "VAKBN", "VAKFN", "VAKKO", "VANGD", "VERTU", "VESTL", "VKGYO", "VKING", "YAPRK", "YATAS", "YAZIC", "YESIL", "YGGYO", "YGYO", "YKBNK", "YKGYO", "YUNSA", "ZOREN"];
     
-    // === DEĞİŞİKLİK BURADA: getMockData fonksiyonu geri eklendi (fallback olarak) ===
     const getMockData = (period) => {
         const data = {
             '7d':  { "Bitcoin": 2.5, "Bist 100": 1.1, "Gram Altın": 0.5, "Euro": -0.2, "Dolar": -0.1, "Enflasyon": 0.8 },
@@ -329,7 +321,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = {};
         results.forEach(result => { data[result.name] = result.value; });
 
-        // Eğer tüm sonuçlar 0 ise (büyük ihtimalle scrape başarısız oldu), hata fırlat
         const allZero = Object.values(data).every(val => val === 0);
         if(allZero) {
             throw new Error("Tüm veriler sıfır döndü, scrape başarısız olmuş olabilir.");
@@ -524,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const anlikPnlTL = (guncelFiyat * t.girisLot) - girisHacmi - girisFee;
             const anlikPnlYuzde = girisHacmi > 0 ? ((guncelFiyat * t.girisLot - girisHacmi) / girisHacmi) * 100 : 0;
             const row = document.createElement('tr');
-            row.innerHTML = `<td>${t.hisse ? t.hisse.toUpperCase() : 'BİLİNMİYOR'}</td><td>${pozBuyuklugu.toFixed(2)}%</td><td>${t.girisTarihi ? new Date(t.girisTarihi).toLocaleDateString('tr-TR') : '-'}</td><td>${girisLot}</td><td>${girisFiyati.toFixed(2)}</td><td>${guncelFiyat.toFixed(2)}</td><td>-</td><td>-</td><td>-</td><td>${gun}</td><td>${girisFee.toFixed(2)}</td><td class="${anlikPnlYuzde >= 0 ? 'positive' : 'negative'}">${anlikPnlYuzde.toFixed(2)}%</td><td class="${anlikPnlTL >= 0 ? 'positive' : 'negative'}">${anlikPnlTL.toFixed(2)}</td><td>-</td><td><a href="${t.tradingviewLink || '#'}" target="_blank" title="${t.tradingviewLink || ''}">${t.tradingviewLink ? '🔗' : ''}</a></td><td><button class="action-btn" onclick="app.openModal(${t.originalIndex}, 'close')" title="Pozisyonu Kapat">✖️</button><button class="action-btn" onclick="app.openModal(${t.originalIndex}, 'edit')" title="Düzenle">✏️</button><button class="action-btn" onclick="app.deleteTransaction(${t.originalIndex})" title="Sil">🗑️</button></td>`;
+            row.innerHTML = `<td>${t.hisse ? t.hisse.toUpperCase() : 'BİLİNMİYOR'}</td><td>${pozBuyuklugu.toFixed(2)}%</td><td>${t.girisTarihi ? new Date(t.girisTarihi).toLocaleDateString('tr-TR') : '-'}</td><td>${girisLot}</td><td>${girisFiyati.toFixed(2)}</td><td>${guncelFiyat.toFixed(2)}</td><td>${gun}</td><td>${girisFee.toFixed(2)}</td><td class="${anlikPnlYuzde >= 0 ? 'positive' : 'negative'}">${anlikPnlYuzde.toFixed(2)}%</td><td class="${anlikPnlTL >= 0 ? 'positive' : 'negative'}">${anlikPnlTL.toFixed(2)}</td><td><a href="${t.tradingviewLink || '#'}" target="_blank" title="${t.tradingviewLink || ''}">${t.tradingviewLink ? '🔗' : ''}</a></td><td><button class="action-btn" onclick="app.openModal(${t.originalIndex}, 'close')" title="Pozisyonu Kapat">✖️</button><button class="action-btn" onclick="app.openModal(${t.originalIndex}, 'edit')" title="Düzenle">✏️</button><button class="action-btn" onclick="app.deleteTransaction(${t.originalIndex})" title="Sil">🗑️</button></td>`;
             acikTbody.appendChild(row);
         });
         
@@ -538,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const netPnlTL = t.netPnlTL || 0;
             const kasayaEtkisi = t.kasayaEtkisi || 0;
             const row = document.createElement('tr');
-            row.innerHTML = `<td>${t.hisse ? t.hisse.toUpperCase() : 'BİLİNMİYOR'}</td><td>${pozBuyuklugu.toFixed(2)}%</td><td>${t.girisTarihi ? new Date(t.girisTarihi).toLocaleDateString('tr-TR') : '-'}</td><td>${girisLot}</td><td>${girisFiyati.toFixed(2)}</td><td>-</td><td>${t.cikisTarihi ? new Date(t.cikisTarihi).toLocaleDateString('tr-TR') : '-'}</td><td>${t.cikisLot || 0}</td><td>${cikisFiyati.toFixed(2)}</td><td>${t.gun || 0}</td><td>${toplamFee.toFixed(2)}</td><td class="${netPnlYuzde >= 0 ? 'positive' : 'negative'}">${netPnlYuzde.toFixed(2)}%</td><td class="${netPnlTL >= 0 ? 'positive' : 'negative'}">${netPnlTL.toFixed(2)}</td><td>${kasayaEtkisi.toFixed(2)}%</td><td><a href="${t.tradingviewLink || '#'}" target="_blank" title="${t.tradingviewLink || ''}">${t.tradingviewLink ? '🔗' : ''}</a></td><td><button class="action-btn" onclick="app.reopenTransaction(${t.originalIndex})" title="Yeniden Aç">🔄</button><button class="action-btn" onclick="app.deleteTransaction(${t.originalIndex})" title="Sil">🗑️</button></td>`;
+            row.innerHTML = `<td>${t.hisse ? t.hisse.toUpperCase() : 'BİLİNMİYOR'}</td><td>${pozBuyuklugu.toFixed(2)}%</td><td>${t.girisTarihi ? new Date(t.girisTarihi).toLocaleDateString('tr-TR') : '-'}</td><td>${girisLot}</td><td>${girisFiyati.toFixed(2)}</td><td>${t.cikisTarihi ? new Date(t.cikisTarihi).toLocaleDateString('tr-TR') : '-'}</td><td>${t.cikisLot || 0}</td><td>${cikisFiyati.toFixed(2)}</td><td>${t.gun || 0}</td><td>${toplamFee.toFixed(2)}</td><td class="${netPnlYuzde >= 0 ? 'positive' : 'negative'}">${netPnlYuzde.toFixed(2)}%</td><td class="${netPnlTL >= 0 ? 'positive' : 'negative'}">${netPnlTL.toFixed(2)}</td><td>${kasayaEtkisi.toFixed(2)}%</td><td><span class="note-icon" title="${t.islemNotu || ''}">${t.islemNotu ? '💬' : ''}</span></td><td><a href="${t.tradingviewLink || '#'}" target="_blank" title="${t.tradingviewLink || ''}">${t.tradingviewLink ? '🔗' : ''}</a></td><td><button class="action-btn" onclick="app.reopenTransaction(${t.originalIndex})" title="Yeniden Aç">🔄</button><button class="action-btn" onclick="app.deleteTransaction(${t.originalIndex})" title="Sil">🗑️</button></td>`;
             kapaliTbody.appendChild(row);
         });
 
@@ -628,11 +619,11 @@ document.addEventListener('DOMContentLoaded', () => {
         let benchmarkData;
         try {
             benchmarkData = await getLiveBenchmarkData(period);
-            console.log("Canlı veri başarıyla çekildi:", benchmarkData);
         } catch (error) {
             console.error("Canlı veri çekilemedi, statik verilere dönülüyor.", error);
             benchmarkData = getMockData(period); 
             chartContainer.innerHTML = '<div class="loader">Canlı veri alınamadı, örnek veriler gösteriliyor...</div>';
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Kullanıcıya mesajı göstermek için kısa bir bekleme
         }
         
         chartContainer.innerHTML = '';
@@ -813,6 +804,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const cikisFiyati = parseFloat(document.getElementById('modalCikisFiyat').value);
         const cikisLot = parseFloat(document.getElementById('modalCikisLot').value);
         const cikisTarihi = document.getElementById('modalCikisTarihi').value; 
+        const islemNotu = document.getElementById('modalNote').value; // Notu al
         if (!cikisFiyati || !cikisLot) { alert('Fiyat ve Lot girin.'); return; }
         const transaction = state.transactions[index];
         if (cikisLot > transaction.girisLot) { alert('Kapatılan lot, pozisyon büyüklüğünden fazla olamaz.'); return; }
@@ -826,10 +818,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const netPnlYuzde = girisHacmi > 0 ? (netPnlTL / girisHacmi) * 100 : 0;
         const gun = Math.round((new Date(cikisTarihi) - new Date(transaction.girisTarihi)) / (1000 * 60 * 60 * 24));
         const kasayaEtkisi = kasaOnce > 0 ? (netPnlTL / kasaOnce) * 100 : 0;
+        const closedPositionData = { cikisTarihi, cikisLot, cikisFiyati, gun, toplamFee, netPnlTL, netPnlYuzde, kasayaEtkisi, isClosed: true, islemNotu };
+
         if (cikisLot < transaction.girisLot) {
-            state.transactions.push({ ...transaction, girisLot: cikisLot, cikisTarihi, cikisLot, cikisFiyati, gun, toplamFee, netPnlTL, netPnlYuzde, kasayaEtkisi, isClosed: true, isPartial: true, });
+            state.transactions.push({ ...transaction, girisLot: cikisLot, ...closedPositionData, isPartial: true });
             transaction.girisLot -= cikisLot;
-        } else { Object.assign(transaction, { cikisTarihi, cikisLot, cikisFiyati, gun, toplamFee, netPnlTL, netPnlYuzde, kasayaEtkisi, isClosed: true }); }
+        } else { Object.assign(transaction, closedPositionData); }
         (state.transactions || []).forEach((t, i) => t.originalIndex = i);
         saveData();
         renderIslemlerTables();
@@ -866,9 +860,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('toggleKapaliPozisyonlar').addEventListener('click', (e) => { const container = document.getElementById('kapaliPozisyonlarContainer'); if (container.style.display === 'none' || container.style.display === '') { container.style.display = 'block'; e.target.textContent = 'Kapalı Pozisyonları Gizle'; } else { container.style.display = 'none'; e.target.textContent = 'Kapalı Pozisyonları Göster'; } });
     
     window.app = {
-        openModal: (index, type) => { const transaction = state.transactions[index]; if (!transaction) return; document.getElementById('modalIndex').value = index; if (type === 'close') { document.getElementById('modalTitle').textContent = `Pozisyon Kapat: ${transaction.hisse}`; document.getElementById('modalCikisLot').value = transaction.girisLot; document.getElementById('modalCikisFiyat').placeholder = "Güncel Fiyat"; document.getElementById('modalCikisTarihi').value = new Date().toISOString().split('T')[0]; modal.style.display = 'flex'; } else if (type === 'edit') { document.getElementById('editIndex').value = index; document.getElementById('hisse').value = transaction.hisse; document.getElementById('girisLot').value = transaction.girisLot; document.getElementById('girisFiyat').value = transaction.girisFiyati; document.getElementById('girisTarihi').value = transaction.girisTarihi; document.getElementById('tradingviewLink').value = transaction.tradingviewLink; document.getElementById('islemEkleBtn').textContent = 'Değişiklikleri Kaydet'; window.scrollTo(0,0); } },
+        openModal: (index, type) => { const transaction = state.transactions[index]; if (!transaction) return; document.getElementById('modalIndex').value = index; if (type === 'close') { document.getElementById('modalTitle').textContent = `Pozisyon Kapat: ${transaction.hisse}`; document.getElementById('modalCikisLot').value = transaction.girisLot; document.getElementById('modalCikisFiyat').placeholder = "Güncel Fiyat"; document.getElementById('modalCikisTarihi').value = new Date().toISOString().split('T')[0]; document.getElementById('modalNote').value = ''; modal.style.display = 'flex'; } else if (type === 'edit') { document.getElementById('editIndex').value = index; document.getElementById('hisse').value = transaction.hisse; document.getElementById('girisLot').value = transaction.girisLot; document.getElementById('girisFiyat').value = transaction.girisFiyati; document.getElementById('girisTarihi').value = transaction.girisTarihi; document.getElementById('tradingviewLink').value = transaction.tradingviewLink; document.getElementById('islemEkleBtn').textContent = 'Değişiklikleri Kaydet'; window.scrollTo(0,0); } },
         deleteTransaction: (index) => { if (confirm('Bu işlemi silmek istediğinizden emin misiniz?')) { state.transactions.splice(index, 1); (state.transactions || []).forEach((t, i) => t.originalIndex = i); saveData(); renderAll(); } },
-        reopenTransaction: (index) => { if (confirm('Bu kapalı işlemi yeniden açmak istediğinizden emin misiniz?')) { const transaction = state.transactions[index]; transaction.isClosed = false; delete transaction.cikisTarihi; delete transaction.cikisLot; delete transaction.cikisFiyati; saveData(); renderIslemlerTables(); } },
+        reopenTransaction: (index) => { if (confirm('Bu kapalı işlemi yeniden açmak istediğinizden emin misiniz?')) { const transaction = state.transactions[index]; transaction.isClosed = false; delete transaction.cikisTarihi; delete transaction.cikisLot; delete transaction.cikisFiyati; delete transaction.islemNotu; saveData(); renderIslemlerTables(); } },
         editNote: (index) => { document.getElementById('noteInput').value = state.notes[index]; document.getElementById('noteEditIndex').value = index; document.getElementById('addNoteBtn').textContent = 'Notu Güncelle'; document.getElementById('noteInput').focus(); },
         deleteNote: (index) => { if (confirm('Bu notu silmek istediğinizden emin misiniz?')) { state.notes.splice(index, 1); saveData(); renderNotes(); } }
     };
