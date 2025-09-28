@@ -244,7 +244,7 @@
             <div style="grid-column: 1 / -1;"><label>Çıkış Tarihi</label><input type="date" id="modalCikisTarihi"></div>
             <div style="grid-column: 1 / -1;">
                 <label>İşlem Notu (opsiyonel)</label>
-                <textarea id="modalNote" style="min-height: 80px;"></textarea>
+                <textarea id="modalNote" style="min-height: 80px;" placeholder="Bu işlemden ne öğrendin?"></textarea>
             </div>
         </div>
         <div class="button-group" style="margin-top:20px;"><button id="modalKaydetBtn">Kaydet</button><button id="modalKapatBtn" style="background-color:#777;">İptal</button></div>
@@ -252,6 +252,10 @@
 </div>
 
 <script>
+// ... Tüm JavaScript kodu önceki ile aynı ...
+// Sadece modalKaydetBtn ve openModal fonksiyonlarındaki küçük değişiklikler önemli
+// Tam kod aşağıdadır.
+
 document.addEventListener('DOMContentLoaded', () => {
 
     const FEE_RATE = 0.00092;
@@ -623,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Canlı veri çekilemedi, statik verilere dönülüyor.", error);
             benchmarkData = getMockData(period); 
             chartContainer.innerHTML = '<div class="loader">Canlı veri alınamadı, örnek veriler gösteriliyor...</div>';
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Kullanıcıya mesajı göstermek için kısa bir bekleme
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
         
         chartContainer.innerHTML = '';
@@ -804,7 +808,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const cikisFiyati = parseFloat(document.getElementById('modalCikisFiyat').value);
         const cikisLot = parseFloat(document.getElementById('modalCikisLot').value);
         const cikisTarihi = document.getElementById('modalCikisTarihi').value; 
-        const islemNotu = document.getElementById('modalNote').value; // Notu al
+        const islemNotu = document.getElementById('modalNote').value;
         if (!cikisFiyati || !cikisLot) { alert('Fiyat ve Lot girin.'); return; }
         const transaction = state.transactions[index];
         if (cikisLot > transaction.girisLot) { alert('Kapatılan lot, pozisyon büyüklüğünden fazla olamaz.'); return; }
