@@ -90,13 +90,7 @@
         .trade-summary-card a:hover { text-decoration: underline; }
         @media (max-width: 768px) { .summary-trades-grid { grid-template-columns: 1fr; } }
 
-        /* Veri yüklenirken gösterilecek animasyon */
-        .loader {
-            color: var(--text-muted-color);
-            font-size: 14px;
-            text-align: center;
-            padding: 40px;
-        }
+        .loader { color: var(--text-muted-color); font-size: 14px; text-align: center; padding: 40px; }
     </style>
 </head>
 <body>
@@ -233,7 +227,7 @@
         <div class="filter-buttons" id="karsilastirma-filter"><button class="active" data-period="ytd">Yıl Başından Beri</button><button data-period="1y">Son 1 Yıl</button><button data-period="1q">Son Çeyrek</button><button data-period="30d">Son 30 Gün</button><button data-period="7d">Son 7 Gün</button></div>
         <div class="filter-buttons"><button id="nominal-btn" class="active">Nominal Getiri</button><button id="reel-btn">Reel Getiri</button></div>
         <div id="karsilastirmaChartContainer">
-             <canvas id="karsilastirmaChart"></canvas>
+            <canvas id="karsilastirmaChart"></canvas>
         </div>
     </div>
     <div id="not-defteri" class="tab-content">
@@ -281,60 +275,67 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const BIST_SYMBOLS = ["ACSEL", "ADEL", "ADESE", "ADNAC", "AEFES", "AFYON", "AGHOL", "AGYO", "AKBNK", "AKCNS", "AKENR", "AKFGY", "AKGRT", "AKMGY", "AKSA", "AKSEN", "ALARK", "ALBRK", "ALCAR", "ALCTL", "ALGYO", "ALKIM", "ANELE", "ANHYT", "ANSGR", "ARCLK", "ARENA", "ARMDA", "ARSAN", "ASELS", "ASLAN", "ASUZU", "ATAGY", "ATEKS", "ATLAS", "AYEN", "AYGAZ", "BAGFS", "BAKFG", "BANVT", "BERA", "BIMAS", "BIZIM", "BJKAS", "BMSCH", "BMSTL", "BOLUC", "BOSSA", "BOYNR", "BRISA", "BRKSN", "BRSAN", "BRYAT", "BSOKE", "BTCIM", "BUCIM", "BURCE", "BURVA", "CEMAS", "CEMTS", "CEOEM", "CIMSA", "CLEBI", "CMBTN", "CCOLA", "CUSAN", "DAGHL", "DAGI", "DARDL", "DENGE", "DENIZ", "DERAS", "DERIM", "DESA", "DESPC", "DEVA", "DGATE", "DGKLB", "DITAS", "DOAS", "DOBUR", "DOCO", "DOGUB", "DOHOL", "DOKTA", "ECILC", "ECZYT", "EDIP", "EGEEN", "EGGUB", "EGPRO", "EGSER", "EKGYO", "EMKEL", "ENJSA", "ENKAI", "ERBOS", "EREGL", "ERSU", "ESCOM", "ETILR", "EUHOL", "EUYO", "FENER", "FLAP", "FMIZP", "FONET", "FORMT", "FROTO", "GARAN", "GARFA", "GENTS", "GEREL", "GLBMD", "GLRYH", "GLYHO", "GOLTS", "GOODY", "GOZDE", "GRNYO", "GSDDE", "GSDHO", "GSRAY", "GUBRF", "GUSGR", "HALKB", "HALKS", "HATEK", "HDFGS", "HEKTS", "HLGYO", "HURGZ", "ICBCT", "IDEAS", "IDGYO", "IEYHO", "IHEVA", "IHGZT", "IHLAS", "IHLGM", "IHYAY", "INDES", "INFO", "INTEM", "IPEKE", "ISBIR", "ISCTR", "ISDMR", "ISFIN", "ISGYO", "ISGSY", "ISMEN", "ITTFH", "IZFAS", "IZMDC", "IZOCM", "JANTS", "KAPLM", "KAREL", "KARSN", "KARTN", "KCHOL", "KENT", "KERVT", "KLGYO", "KLMSN", "KONYA", "KORDS", "KOZAA", "KOZAL", "KRDMD", "KRSTL", "KRTEK", "KUYAS", "LIDFA", "LINK", "LKMNH", "LOGO", "LUKSK", "MAALT", "MAKTK", "MARKA", "MARTI", "MAVI", "MEGAP", "MEPET", "MERCN", "METRO", "MGROS", "MIPAZ", "MMCAS", "MNDRS", "MRGYO", "MRSHL", "MSGYO", "MTRYO", "MUTLU", "MZHLD", "NETAS", "NIBAS", "NTTUR", "NUHCM", "NUGYO", "ODAS", "OLMKS", "ORCAY", "ORGE", "ORMA", "OSMEN", "OSTIM", "OTKAR", "OYAKC", "OYLUM", "OZBAL", "OZGYO", "OZKGY", "PAGYO", "PARSN", "PEGYO", "PENGD", "PETKM", "PETUN", "PGSUS", "PINSU", "PKART", "PLAS", "POLHO", "PRKME", "PRZMA", "PSDTC", "PTOFS", "QNBFB", "QNBFL", "RALYH", "RAYSG", "RHEA", "RODRG", "ROYAL", "RTALB", "RYGYO", "SAFKR", "SAHOL", "SANKO", "SARKY", "SASA", "SEKUR", "SELEC", "SELGD", "SERVE", "SISE", "SKBNK", "SNGYO", "SODSN", "SOKM", "SONME", "SRVGY", "SUMAS", "TATGD", "TAVHL", "TBORG", "TCELL", "TCML", "TEKTU", "THYAO", "TKFEN", "TKNSA", "TMSN", "TOASO", "TRCAS", "TRGYO", "TRKCM", "TSKB", "TSPOR", "TTKOM", "TTRAK", "TUKAS", "TUPRS", "TURGG", "ULKER", "UNYEC", "USAK", "UTPYA", "VAKBN", "VAKFN", "VAKKO", "VANGD", "VERTU", "VESTL", "VKGYO", "VKING", "YAPRK", "YATAS", "YAZIC", "YESIL", "YGGYO", "YGYO", "YKBNK", "YKGYO", "YUNSA", "ZOREN"];
     
-    // === DEĞİŞİKLİK BURADA: getMockData fonksiyonu getLiveBenchmarkData ile değiştirildi ===
-    
-    // Tarayıcı güvenlik (CORS) engelini aşmak için aracı servis
+    // === DEĞİŞİKLİK BURADA: getMockData fonksiyonu geri eklendi (fallback olarak) ===
+    const getMockData = (period) => {
+        const data = {
+            '7d':  { "Bitcoin": 2.5, "Bist 100": 1.1, "Gram Altın": 0.5, "Euro": -0.2, "Dolar": -0.1, "Enflasyon": 0.8 },
+            '30d': { "Bitcoin": 10.2, "Bist 100": 4.5, "Gram Altın": 2.1, "Euro": 1.3, "Dolar": 1.0, "Enflasyon": 3.5 },
+            '1q':  { "Bitcoin": -5.0, "Bist 100": 8.0, "Gram Altın": 6.5, "Euro": 3.0, "Dolar": 2.8, "Enflasyon": 10.0 },
+            '1y':  { "Bitcoin": 80.5, "Bist 100": 45.2, "Gram Altın": 60.1, "Euro": 55.3, "Dolar": 54.0, "Enflasyon": 65.0 },
+            'ytd': { "Bitcoin": 60.1, "Bist 100": 35.8, "Gram Altın": 50.2, "Euro": 48.1, "Dolar": 47.5, "Enflasyon": 55.0 }
+        };
+        return data[period] || data['ytd'];
+    };
+
     const CORS_PROXY = "https://api.allorigins.win/raw?url=";
 
-    // Veriyi web'den çeken yardımcı fonksiyon
+    async function fetchWithTimeout(resource, options = {}, timeout = 8000) {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        const response = await fetch(resource, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+    }
+
     async function scrapeData(url) {
         try {
-            const response = await fetch(CORS_PROXY + encodeURIComponent(url));
-            if (!response.ok) return 0; // Hata durumunda 0 dön
+            const response = await fetchWithTimeout(CORS_PROXY + encodeURIComponent(url));
+            if (!response.ok) return 0;
             const html = await response.text();
             const parser = new DOMParser();
             const doc = parser.parseFromString(html, 'text/html');
             const changeElement = doc.querySelector('[data-test="instrument-price-change-percent"]');
             if (!changeElement) return 0;
-            // (+, -, %) karakterlerini temizleyip sayıya çevir
             const value = parseFloat(changeElement.textContent.replace(/[()%\+]/g, '').replace(',', '.'));
             return isNaN(value) ? 0 : value;
         } catch (error) {
             console.error('Veri çekme hatası:', url, error);
-            return 0; // Hata durumunda 0 dön
+            return 0;
         }
     }
 
-    // Karşılaştırma verilerini canlı olarak getiren ana fonksiyon
     async function getLiveBenchmarkData(period) {
-        // Not: Farklı periyotlar (7d, 1y) için veri kazıma çok daha karmaşıktır.
-        // Bu örnek, tüm periyotlar için GÜNCEL günlük değişimi çeker.
-        // Daha gelişmiş bir sürümde farklı periyotlar için farklı kaynaklar gerekebilir.
-        
-        // Veri çekilecek URL'ler
         const urls = {
             "Bitcoin": "https://www.investing.com/crypto/bitcoin/btc-usd",
             "Bist 100": "https://www.investing.com/indices/ise-100",
-            "Gram Altın": "https://www.investing.com/commodities/gold-spot", // Ons Altın, Gram'a yakın bir gösterge
+            "Gram Altın": "https://www.investing.com/commodities/gold-spot",
             "Euro": "https://www.investing.com/currencies/eur-try",
             "Dolar": "https://www.investing.com/currencies/usd-try"
         };
-
         const promises = Object.entries(urls).map(([name, url]) => 
             scrapeData(url).then(value => ({ name, value }))
         );
-        
         const results = await Promise.all(promises);
-        
         const data = {};
-        results.forEach(result => {
-            data[result.name] = result.value;
-        });
+        results.forEach(result => { data[result.name] = result.value; });
 
-        // Enflasyon verisi aylık olduğu için sabit olarak ekleniyor.
-        // Güncel TÜFE oranına göre buradan manuel güncellenebilir.
+        // Eğer tüm sonuçlar 0 ise (büyük ihtimalle scrape başarısız oldu), hata fırlat
+        const allZero = Object.values(data).every(val => val === 0);
+        if(allZero) {
+            throw new Error("Tüm veriler sıfır döndü, scrape başarısız olmuş olabilir.");
+        }
+
         data["Enflasyon"] = 3.5; 
-
         return data;
     }
 
@@ -619,12 +620,20 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const chartContainer = document.getElementById('karsilastirmaChartContainer');
         const canvas = document.getElementById('karsilastirmaChart');
-        chartContainer.innerHTML = '<div class="loader">Karşılaştırma verileri yükleniyor...</div>';
+        chartContainer.innerHTML = '<div class="loader">Canlı karşılaştırma verileri yükleniyor...</div>';
         
         const period = document.querySelector('#karsilastirma-filter .active').dataset.period;
         const isReel = document.querySelector('#reel-btn').classList.contains('active');
         
-        const benchmarkData = await getLiveBenchmarkData(period);
+        let benchmarkData;
+        try {
+            benchmarkData = await getLiveBenchmarkData(period);
+            console.log("Canlı veri başarıyla çekildi:", benchmarkData);
+        } catch (error) {
+            console.error("Canlı veri çekilemedi, statik verilere dönülüyor.", error);
+            benchmarkData = getMockData(period); 
+            chartContainer.innerHTML = '<div class="loader">Canlı veri alınamadı, örnek veriler gösteriliyor...</div>';
+        }
         
         chartContainer.innerHTML = '';
         chartContainer.appendChild(canvas);
